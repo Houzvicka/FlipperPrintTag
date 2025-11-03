@@ -9,9 +9,8 @@ void openprinttag_scene_read_success_on_enter(void* context) {
     OpenPrintTag* app = context;
     Popup* popup = app->popup;
 
-    popup_set_icon(popup, 32, 5, &I_DolphinNice_96x59);
-    popup_set_header(popup, "Success!", 13, 22, AlignLeft, AlignBottom);
-    popup_set_text(popup, "Tag read successfully", 13, 32, AlignLeft, AlignTop);
+    popup_set_header(popup, "Success!", 64, 10, AlignCenter, AlignTop);
+    popup_set_text(popup, "Tag read successfully", 64, 32, AlignCenter, AlignCenter);
     popup_set_timeout(popup, 1500);
     popup_set_context(popup, app);
     popup_set_callback(popup, openprinttag_scene_read_success_popup_callback);

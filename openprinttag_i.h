@@ -12,7 +12,9 @@
 #include <gui/modules/loading.h>
 #include <nfc/nfc.h>
 #include <nfc/nfc_device.h>
-#include <nfc/protocols/iso15693_3a/iso15693_3a.h>
+#include <nfc/nfc_scanner.h>
+#include <nfc/nfc_poller.h>
+#include <nfc/protocols/iso15693_3/iso15693_3.h>
 
 #define TAG "OpenPrintTag"
 #define OPENPRINTTAG_MIME_TYPE "application/vnd.openprinttag"
@@ -108,6 +110,9 @@ typedef struct OpenPrintTag {
 
     Nfc* nfc;
     NfcDevice* nfc_device;
+    NfcScanner* nfc_scanner;
+    NfcPoller* nfc_poller;
+    NfcProtocol detected_protocol;
 
     OpenPrintTagData tag_data;
 } OpenPrintTag;

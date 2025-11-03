@@ -9,10 +9,9 @@ void openprinttag_scene_read_error_on_enter(void* context) {
     OpenPrintTag* app = context;
     Popup* popup = app->popup;
 
-    popup_set_icon(popup, 32, 5, &I_DolphinNice_96x59);
-    popup_set_header(popup, "Error!", 13, 22, AlignLeft, AlignBottom);
+    popup_set_header(popup, "Error!", 64, 10, AlignCenter, AlignTop);
     popup_set_text(
-        popup, "Failed to read tag\nor not an OpenPrintTag", 13, 32, AlignLeft, AlignTop);
+        popup, "NFC reading\nnot implemented yet", 64, 32, AlignCenter, AlignCenter);
     popup_set_timeout(popup, 2500);
     popup_set_context(popup, app);
     popup_set_callback(popup, openprinttag_scene_read_error_popup_callback);

@@ -1,30 +1,36 @@
 #include "openprinttag_i.h"
 
+// Scene on_enter handlers
+void (*const openprinttag_scene_on_enter_handlers[])(void*) = {
+    openprinttag_scene_start_on_enter,
+    openprinttag_scene_read_on_enter,
+    openprinttag_scene_read_success_on_enter,
+    openprinttag_scene_read_error_on_enter,
+    openprinttag_scene_display_on_enter,
+};
+
+// Scene on_event handlers
+bool (*const openprinttag_scene_on_event_handlers[])(void*, SceneManagerEvent) = {
+    openprinttag_scene_start_on_event,
+    openprinttag_scene_read_on_event,
+    openprinttag_scene_read_success_on_event,
+    openprinttag_scene_read_error_on_event,
+    openprinttag_scene_display_on_event,
+};
+
+// Scene on_exit handlers
+void (*const openprinttag_scene_on_exit_handlers[])(void*) = {
+    openprinttag_scene_start_on_exit,
+    openprinttag_scene_read_on_exit,
+    openprinttag_scene_read_success_on_exit,
+    openprinttag_scene_read_error_on_exit,
+    openprinttag_scene_display_on_exit,
+};
+
 static const SceneManagerHandlers openprinttag_scene_handlers = {
-    .on_enter_handlers =
-        {
-            [OpenPrintTagSceneStart] = openprinttag_scene_start_on_enter,
-            [OpenPrintTagSceneRead] = openprinttag_scene_read_on_enter,
-            [OpenPrintTagSceneReadSuccess] = openprinttag_scene_read_success_on_enter,
-            [OpenPrintTagSceneReadError] = openprinttag_scene_read_error_on_enter,
-            [OpenPrintTagSceneDisplay] = openprinttag_scene_display_on_enter,
-        },
-    .on_event_handlers =
-        {
-            [OpenPrintTagSceneStart] = openprinttag_scene_start_on_event,
-            [OpenPrintTagSceneRead] = openprinttag_scene_read_on_event,
-            [OpenPrintTagSceneReadSuccess] = openprinttag_scene_read_success_on_event,
-            [OpenPrintTagSceneReadError] = openprinttag_scene_read_error_on_event,
-            [OpenPrintTagSceneDisplay] = openprinttag_scene_display_on_event,
-        },
-    .on_exit_handlers =
-        {
-            [OpenPrintTagSceneStart] = openprinttag_scene_start_on_exit,
-            [OpenPrintTagSceneRead] = openprinttag_scene_read_on_exit,
-            [OpenPrintTagSceneReadSuccess] = openprinttag_scene_read_success_on_exit,
-            [OpenPrintTagSceneReadError] = openprinttag_scene_read_error_on_exit,
-            [OpenPrintTagSceneDisplay] = openprinttag_scene_display_on_exit,
-        },
+    .on_enter_handlers = openprinttag_scene_on_enter_handlers,
+    .on_event_handlers = openprinttag_scene_on_event_handlers,
+    .on_exit_handlers = openprinttag_scene_on_exit_handlers,
     .scene_num = OpenPrintTagSceneNum,
 };
 
@@ -140,6 +146,10 @@ static OpenPrintTag* openprinttag_alloc() {
 
     app->tag_data.raw_data = NULL;
     app->tag_data.raw_data_size = 0;
+
+    // Initialize NFC scanner/poller to NULL
+    app->nfc_scanner = NULL;
+    app->nfc_poller = NULL;
 
     // Start with main menu scene
     scene_manager_next_scene(app->scene_manager, OpenPrintTagSceneStart);
