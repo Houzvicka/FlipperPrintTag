@@ -1,5 +1,7 @@
 # OpenPrintTag Reader for Flipper Zero
 
+[![Build FAP](https://github.com/Houzvicka/FlipperPrintTag/actions/workflows/build.yml/badge.svg)](https://github.com/Houzvicka/FlipperPrintTag/actions/workflows/build.yml)
+
 A Flipper Zero application to read and write OpenPrintTag NFC tags used for 3D printing filament spools.
 
 ## About OpenPrintTag

@@ -1,0 +1,44 @@
+name: Build FAP
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ main, master, dev ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build Flipper Application Package
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build FAP
+        uses: flipperdevices/flipperzero-ufbt-action@v0.1
+        id: build-fap
+        with:
+          sdk-channel: release
+
+      - name: Upload FAP artifact
+        if: startsWith(github.ref, 'refs/heads/rel/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: openprinttag-fap
+          path: |
+            dist/*.fap
+            dist/**/*.fap
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/heads/rel/')
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: dist/*.fap
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
