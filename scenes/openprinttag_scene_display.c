@@ -14,9 +14,10 @@ void openprinttag_scene_display_on_enter(void* context) {
     furi_string_cat_printf(temp_str, "OpenPrintTag Data\n\n");
 
     if(app->tag_data.main.has_data) {
-        if(!furi_string_empty(app->tag_data.main.brand)) {
+        // Brand and material identification
+        if(!furi_string_empty(app->tag_data.main.brand_name)) {
             furi_string_cat_printf(
-                temp_str, "Brand: %s\n", furi_string_get_cstr(app->tag_data.main.brand));
+                temp_str, "Brand: %s\n", furi_string_get_cstr(app->tag_data.main.brand_name));
         }
 
         if(!furi_string_empty(app->tag_data.main.material_name)) {
@@ -26,40 +27,81 @@ void openprinttag_scene_display_on_enter(void* context) {
 
         // Material class (FFF/SLA)
         const char* class_abbr = material_class_get_abbr(app->tag_data.main.material_class);
-        const char* class_name = material_class_get_name(app->tag_data.main.material_class);
-        furi_string_cat_printf(temp_str, "Class: %s (%s)\n", class_abbr, class_name);
+        furi_string_cat_printf(temp_str, "Class: %s\n", class_abbr);
 
         // Material type (PLA, PETG, etc.)
         if(app->tag_data.main.has_material_type_enum) {
             const char* type_abbr = material_type_get_abbr(app->tag_data.main.material_type_enum);
-            const char* type_name = material_type_get_name(app->tag_data.main.material_type_enum);
-            furi_string_cat_printf(temp_str, "Type: %s (%s)\n", type_abbr, type_name);
-        } else if(!furi_string_empty(app->tag_data.main.material_type)) {
+            furi_string_cat_printf(temp_str, "Type: %s\n", type_abbr);
+        } else if(!furi_string_empty(app->tag_data.main.material_type_str)) {
             furi_string_cat_printf(
-                temp_str, "Type: %s\n", furi_string_get_cstr(app->tag_data.main.material_type));
+                temp_str, "Type: %s\n", furi_string_get_cstr(app->tag_data.main.material_type_str));
         }
 
         if(app->tag_data.main.gtin > 0) {
             furi_string_cat_printf(temp_str, "GTIN: %llu\n", app->tag_data.main.gtin);
+        }
+
+        // Weights
+        if(app->tag_data.main.actual_netto_full_weight > 0) {
+            furi_string_cat_printf(temp_str, "Weight: %lu g\n", app->tag_data.main.actual_netto_full_weight);
+        }
+
+        // FFF-specific
+        if(app->tag_data.main.filament_diameter > 0) {
+            furi_string_cat_printf(temp_str, "Diameter: %.2f mm\n", (double)app->tag_data.main.filament_diameter);
+        }
+
+        if(app->tag_data.main.actual_full_length > 0) {
+            furi_string_cat_printf(temp_str, "Length: %.1f m\n", (double)(app->tag_data.main.actual_full_length / 1000.0f));
+        }
+
+        // Print temperatures
+        if(app->tag_data.main.min_print_temperature > 0) {
+            if(app->tag_data.main.max_print_temperature > 0) {
+                furi_string_cat_printf(
+                    temp_str, "Nozzle: %ld-%ld°C\n",
+                    app->tag_data.main.min_print_temperature,
+                    app->tag_data.main.max_print_temperature);
+            } else {
+                furi_string_cat_printf(temp_str, "Nozzle: %ld°C+\n", app->tag_data.main.min_print_temperature);
+            }
+        }
+
+        if(app->tag_data.main.min_bed_temperature > 0) {
+            if(app->tag_data.main.max_bed_temperature > 0) {
+                furi_string_cat_printf(
+                    temp_str, "Bed: %ld-%ld°C\n",
+                    app->tag_data.main.min_bed_temperature,
+                    app->tag_data.main.max_bed_temperature);
+            } else {
+                furi_string_cat_printf(temp_str, "Bed: %ld°C+\n", app->tag_data.main.min_bed_temperature);
+            }
         }
     } else {
         furi_string_cat_printf(temp_str, "No main data found\n");
     }
 
     if(app->tag_data.aux.has_data) {
-        furi_string_cat_printf(temp_str, "\nAuxiliary Data:\n");
+        furi_string_cat_printf(temp_str, "\n--- Usage Data ---\n");
 
-        if(app->tag_data.aux.remaining_length > 0) {
+        if(app->tag_data.aux.consumed_weight > 0) {
+            furi_string_cat_printf(temp_str, "Consumed: %lu g\n", app->tag_data.aux.consumed_weight);
+
+            // Calculate remaining if we have full weight
+            if(app->tag_data.main.actual_netto_full_weight > 0) {
+                uint32_t remaining = app->tag_data.main.actual_netto_full_weight - app->tag_data.aux.consumed_weight;
+                furi_string_cat_printf(temp_str, "Remaining: %lu g\n", remaining);
+            }
+        }
+
+        if(!furi_string_empty(app->tag_data.aux.workgroup)) {
             furi_string_cat_printf(
-                temp_str, "Remaining: %lu mm\n", app->tag_data.aux.remaining_length);
+                temp_str, "Workgroup: %s\n", furi_string_get_cstr(app->tag_data.aux.workgroup));
         }
 
-        if(app->tag_data.aux.used_length > 0) {
-            furi_string_cat_printf(temp_str, "Used: %lu mm\n", app->tag_data.aux.used_length);
-        }
-
-        if(app->tag_data.aux.timestamp > 0) {
-            furi_string_cat_printf(temp_str, "Updated: %llu\n", app->tag_data.aux.timestamp);
+        if(app->tag_data.aux.last_stir_time > 0) {
+            furi_string_cat_printf(temp_str, "Last stir: %llu\n", app->tag_data.aux.last_stir_time);
         }
     }
 

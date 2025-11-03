@@ -41,17 +41,29 @@ static bool openprinttag_back_event_callback(void* context) {
 }
 
 void openprinttag_free_data(OpenPrintTagData* data) {
-    if(data->main.brand) {
-        furi_string_free(data->main.brand);
-        data->main.brand = NULL;
+    if(data->main.brand_name) {
+        furi_string_free(data->main.brand_name);
+        data->main.brand_name = NULL;
     }
     if(data->main.material_name) {
         furi_string_free(data->main.material_name);
         data->main.material_name = NULL;
     }
-    if(data->main.material_type) {
-        furi_string_free(data->main.material_type);
-        data->main.material_type = NULL;
+    if(data->main.material_type_str) {
+        furi_string_free(data->main.material_type_str);
+        data->main.material_type_str = NULL;
+    }
+    if(data->main.material_abbreviation) {
+        furi_string_free(data->main.material_abbreviation);
+        data->main.material_abbreviation = NULL;
+    }
+    if(data->main.tags) {
+        free(data->main.tags);
+        data->main.tags = NULL;
+    }
+    if(data->aux.workgroup) {
+        furi_string_free(data->aux.workgroup);
+        data->aux.workgroup = NULL;
     }
     if(data->raw_data) {
         free(data->raw_data);
@@ -96,14 +108,36 @@ static OpenPrintTag* openprinttag_alloc() {
         app->view_dispatcher, OpenPrintTagViewLoading, loading_get_view(app->loading));
 
     // Initialize tag data
-    app->tag_data.main.brand = furi_string_alloc();
+    app->tag_data.main.brand_name = furi_string_alloc();
     app->tag_data.main.material_name = furi_string_alloc();
-    app->tag_data.main.material_type = furi_string_alloc();
+    app->tag_data.main.material_type_str = furi_string_alloc();
+    app->tag_data.main.material_abbreviation = furi_string_alloc();
     app->tag_data.main.material_type_enum = 0;
     app->tag_data.main.material_class = 0;
+    app->tag_data.main.gtin = 0;
+    app->tag_data.main.nominal_netto_full_weight = 0;
+    app->tag_data.main.actual_netto_full_weight = 0;
+    app->tag_data.main.empty_container_weight = 0;
+    app->tag_data.main.manufactured_date = 0;
+    app->tag_data.main.expiration_date = 0;
+    app->tag_data.main.filament_diameter = 0;
+    app->tag_data.main.nominal_full_length = 0;
+    app->tag_data.main.actual_full_length = 0;
+    app->tag_data.main.min_print_temperature = 0;
+    app->tag_data.main.max_print_temperature = 0;
+    app->tag_data.main.min_bed_temperature = 0;
+    app->tag_data.main.max_bed_temperature = 0;
+    app->tag_data.main.density = 0;
+    app->tag_data.main.tags = NULL;
+    app->tag_data.main.tags_count = 0;
     app->tag_data.main.has_data = false;
     app->tag_data.main.has_material_type_enum = false;
+
+    app->tag_data.aux.consumed_weight = 0;
+    app->tag_data.aux.workgroup = furi_string_alloc();
+    app->tag_data.aux.last_stir_time = 0;
     app->tag_data.aux.has_data = false;
+
     app->tag_data.raw_data = NULL;
     app->tag_data.raw_data_size = 0;
 

@@ -19,25 +19,53 @@
 
 // OpenPrintTag data structures
 typedef struct {
+    uint32_t main_region_offset;
+    uint32_t main_region_size;
     uint32_t aux_region_offset;
     uint32_t aux_region_size;
 } OpenPrintTagMeta;
 
 typedef struct {
-    FuriString* brand;
+    // Brand and material identification
+    FuriString* brand_name;
     FuriString* material_name;
-    FuriString* material_type;
-    uint32_t material_type_enum; // If material_type is stored as enum instead of string
+    FuriString* material_type_str;
+    FuriString* material_abbreviation;
+    uint32_t material_type_enum;
     uint32_t material_class;
     uint64_t gtin;
+
+    // Weights (in grams)
+    uint32_t nominal_netto_full_weight;
+    uint32_t actual_netto_full_weight;
+    uint32_t empty_container_weight;
+
+    // Timestamps
+    uint64_t manufactured_date;
+    uint64_t expiration_date;
+
+    // FFF-specific
+    float filament_diameter;
+    float nominal_full_length;
+    float actual_full_length;
+    int32_t min_print_temperature;
+    int32_t max_print_temperature;
+    int32_t min_bed_temperature;
+    int32_t max_bed_temperature;
+
+    // Material properties
+    float density;
+    uint32_t* tags;
+    size_t tags_count;
+
     bool has_data;
     bool has_material_type_enum;
 } OpenPrintTagMain;
 
 typedef struct {
-    uint32_t remaining_length;
-    uint32_t used_length;
-    uint64_t timestamp;
+    uint32_t consumed_weight;  // in grams
+    FuriString* workgroup;
+    uint64_t last_stir_time;   // timestamp
     bool has_data;
 } OpenPrintTagAux;
 
