@@ -1,0 +1,158 @@
+#include "openprinttag_i.h"
+
+static const SceneManagerHandlers openprinttag_scene_handlers = {
+    .on_enter_handlers =
+        {
+            [OpenPrintTagSceneStart] = openprinttag_scene_start_on_enter,
+            [OpenPrintTagSceneRead] = openprinttag_scene_read_on_enter,
+            [OpenPrintTagSceneReadSuccess] = openprinttag_scene_read_success_on_enter,
+            [OpenPrintTagSceneReadError] = openprinttag_scene_read_error_on_enter,
+            [OpenPrintTagSceneDisplay] = openprinttag_scene_display_on_enter,
+        },
+    .on_event_handlers =
+        {
+            [OpenPrintTagSceneStart] = openprinttag_scene_start_on_event,
+            [OpenPrintTagSceneRead] = openprinttag_scene_read_on_event,
+            [OpenPrintTagSceneReadSuccess] = openprinttag_scene_read_success_on_event,
+            [OpenPrintTagSceneReadError] = openprinttag_scene_read_error_on_event,
+            [OpenPrintTagSceneDisplay] = openprinttag_scene_display_on_event,
+        },
+    .on_exit_handlers =
+        {
+            [OpenPrintTagSceneStart] = openprinttag_scene_start_on_exit,
+            [OpenPrintTagSceneRead] = openprinttag_scene_read_on_exit,
+            [OpenPrintTagSceneReadSuccess] = openprinttag_scene_read_success_on_exit,
+            [OpenPrintTagSceneReadError] = openprinttag_scene_read_error_on_exit,
+            [OpenPrintTagSceneDisplay] = openprinttag_scene_display_on_exit,
+        },
+    .scene_num = OpenPrintTagSceneNum,
+};
+
+static bool openprinttag_custom_event_callback(void* context, uint32_t event) {
+    furi_assert(context);
+    OpenPrintTag* app = context;
+    return scene_manager_handle_custom_event(app->scene_manager, event);
+}
+
+static bool openprinttag_back_event_callback(void* context) {
+    furi_assert(context);
+    OpenPrintTag* app = context;
+    return scene_manager_handle_back_event(app->scene_manager);
+}
+
+void openprinttag_free_data(OpenPrintTagData* data) {
+    if(data->main.brand) {
+        furi_string_free(data->main.brand);
+        data->main.brand = NULL;
+    }
+    if(data->main.material_name) {
+        furi_string_free(data->main.material_name);
+        data->main.material_name = NULL;
+    }
+    if(data->main.material_type) {
+        furi_string_free(data->main.material_type);
+        data->main.material_type = NULL;
+    }
+    if(data->raw_data) {
+        free(data->raw_data);
+        data->raw_data = NULL;
+    }
+    data->raw_data_size = 0;
+}
+
+static OpenPrintTag* openprinttag_alloc() {
+    OpenPrintTag* app = malloc(sizeof(OpenPrintTag));
+
+    app->gui = furi_record_open(RECORD_GUI);
+    app->nfc = nfc_alloc();
+
+    // View dispatcher
+    app->view_dispatcher = view_dispatcher_alloc();
+    view_dispatcher_set_event_callback_context(app->view_dispatcher, app);
+    view_dispatcher_set_custom_event_callback(
+        app->view_dispatcher, openprinttag_custom_event_callback);
+    view_dispatcher_set_navigation_event_callback(
+        app->view_dispatcher, openprinttag_back_event_callback);
+    view_dispatcher_attach_to_gui(app->view_dispatcher, app->gui, ViewDispatcherTypeFullscreen);
+
+    // Scene manager
+    app->scene_manager = scene_manager_alloc(&openprinttag_scene_handlers, app);
+
+    // Views
+    app->submenu = submenu_alloc();
+    view_dispatcher_add_view(
+        app->view_dispatcher, OpenPrintTagViewSubmenu, submenu_get_view(app->submenu));
+
+    app->widget = widget_alloc();
+    view_dispatcher_add_view(
+        app->view_dispatcher, OpenPrintTagViewWidget, widget_get_view(app->widget));
+
+    app->popup = popup_alloc();
+    view_dispatcher_add_view(
+        app->view_dispatcher, OpenPrintTagViewPopup, popup_get_view(app->popup));
+
+    app->loading = loading_alloc();
+    view_dispatcher_add_view(
+        app->view_dispatcher, OpenPrintTagViewLoading, loading_get_view(app->loading));
+
+    // Initialize tag data
+    app->tag_data.main.brand = furi_string_alloc();
+    app->tag_data.main.material_name = furi_string_alloc();
+    app->tag_data.main.material_type = furi_string_alloc();
+    app->tag_data.main.has_data = false;
+    app->tag_data.aux.has_data = false;
+    app->tag_data.raw_data = NULL;
+    app->tag_data.raw_data_size = 0;
+
+    // Start with main menu scene
+    scene_manager_next_scene(app->scene_manager, OpenPrintTagSceneStart);
+
+    return app;
+}
+
+static void openprinttag_free(OpenPrintTag* app) {
+    furi_assert(app);
+
+    // Free tag data
+    openprinttag_free_data(&app->tag_data);
+
+    // Views
+    view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewSubmenu);
+    submenu_free(app->submenu);
+
+    view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewWidget);
+    widget_free(app->widget);
+
+    view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewPopup);
+    popup_free(app->popup);
+
+    view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewLoading);
+    loading_free(app->loading);
+
+    // Scene manager
+    scene_manager_free(app->scene_manager);
+
+    // View dispatcher
+    view_dispatcher_free(app->view_dispatcher);
+
+    // NFC
+    if(app->nfc_device) {
+        nfc_device_free(app->nfc_device);
+    }
+    nfc_free(app->nfc);
+
+    // GUI
+    furi_record_close(RECORD_GUI);
+
+    free(app);
+}
+
+int32_t openprinttag_app(void* p) {
+    UNUSED(p);
+    OpenPrintTag* app = openprinttag_alloc();
+
+    view_dispatcher_run(app->view_dispatcher);
+
+    openprinttag_free(app);
+    return 0;
+}
