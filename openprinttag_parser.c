@@ -112,9 +112,7 @@ static bool parse_main_section(CborParser* parser, OpenPrintTagMain* main) {
         case MAIN_BRAND_NAME:
             if(value.type == CborValueTypeText) {
                 furi_string_set_strn(
-                    main->brand_name,
-                    (const char*)value.value.text.data,
-                    value.value.text.size);
+                    main->brand_name, (const char*)value.value.text.data, value.value.text.size);
                 main->has_data = true;
             }
             break;
@@ -247,9 +245,7 @@ static bool parse_aux_section(CborParser* parser, OpenPrintTagAux* aux) {
         case AUX_WORKGROUP:
             if(value.type == CborValueTypeText) {
                 furi_string_set_strn(
-                    aux->workgroup,
-                    (const char*)value.value.text.data,
-                    value.value.text.size);
+                    aux->workgroup, (const char*)value.value.text.data, value.value.text.size);
                 aux->has_data = true;
             }
             break;
@@ -287,7 +283,9 @@ bool openprinttag_parse_cbor(OpenPrintTag* app, const uint8_t* payload, size_t s
     // Parse auxiliary section if present
     if(app->tag_data.meta.aux_region_offset > 0) {
         cbor_parser_init(
-            &parser, payload + app->tag_data.meta.aux_region_offset, size - app->tag_data.meta.aux_region_offset);
+            &parser,
+            payload + app->tag_data.meta.aux_region_offset,
+            size - app->tag_data.meta.aux_region_offset);
         if(!parse_aux_section(&parser, &app->tag_data.aux)) {
             FURI_LOG_W(TAG, "Failed to parse aux section");
         }

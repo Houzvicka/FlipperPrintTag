@@ -3,11 +3,11 @@
 #include <string.h>
 
 // NDEF Record structure
-#define NDEF_MB 0x80 // Message Begin
-#define NDEF_ME 0x40 // Message End
-#define NDEF_CF 0x20 // Chunk Flag
-#define NDEF_SR 0x10 // Short Record
-#define NDEF_IL 0x08 // ID Length present
+#define NDEF_MB       0x80 // Message Begin
+#define NDEF_ME       0x40 // Message End
+#define NDEF_CF       0x20 // Chunk Flag
+#define NDEF_SR       0x10 // Short Record
+#define NDEF_IL       0x08 // ID Length present
 #define NDEF_TNF_MASK 0x07 // Type Name Format
 
 #define TNF_MEDIA_TYPE 0x02

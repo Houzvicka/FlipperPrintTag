@@ -14,7 +14,11 @@ void openprinttag_scene_start_on_enter(void* context) {
     Submenu* submenu = app->submenu;
 
     submenu_add_item(
-        submenu, "Read OpenPrintTag", SubmenuIndexRead, openprinttag_scene_start_submenu_callback, app);
+        submenu,
+        "Read OpenPrintTag",
+        SubmenuIndexRead,
+        openprinttag_scene_start_submenu_callback,
+        app);
 
     submenu_set_selected_item(
         submenu, scene_manager_get_scene_state(app->scene_manager, OpenPrintTagSceneStart));

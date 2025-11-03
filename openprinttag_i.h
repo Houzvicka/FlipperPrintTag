@@ -16,7 +16,7 @@
 #include <nfc/nfc_poller.h>
 #include <nfc/protocols/iso15693_3/iso15693_3.h>
 
-#define TAG "OpenPrintTag"
+#define TAG                    "OpenPrintTag"
 #define OPENPRINTTAG_MIME_TYPE "application/vnd.openprinttag"
 
 // OpenPrintTag data structures
@@ -65,9 +65,9 @@ typedef struct {
 } OpenPrintTagMain;
 
 typedef struct {
-    uint32_t consumed_weight;  // in grams
+    uint32_t consumed_weight; // in grams
     FuriString* workgroup;
-    uint64_t last_stir_time;   // timestamp
+    uint64_t last_stir_time; // timestamp
     bool has_data;
 } OpenPrintTagAux;
 

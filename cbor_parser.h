@@ -5,17 +5,17 @@
 #include <stdbool.h>
 
 // CBOR major types
-#define CBOR_TYPE_UINT 0
-#define CBOR_TYPE_NINT 1
+#define CBOR_TYPE_UINT  0
+#define CBOR_TYPE_NINT  1
 #define CBOR_TYPE_BYTES 2
-#define CBOR_TYPE_TEXT 3
+#define CBOR_TYPE_TEXT  3
 #define CBOR_TYPE_ARRAY 4
-#define CBOR_TYPE_MAP 5
-#define CBOR_TYPE_TAG 6
+#define CBOR_TYPE_MAP   5
+#define CBOR_TYPE_TAG   6
 #define CBOR_TYPE_FLOAT 7
 
 // CBOR additional info values
-#define CBOR_INFO_UINT8 24
+#define CBOR_INFO_UINT8  24
 #define CBOR_INFO_UINT16 25
 #define CBOR_INFO_UINT32 26
 #define CBOR_INFO_UINT64 27

@@ -18,7 +18,7 @@ jobs:
       - name: Run clang-format check
         uses: jidicula/clang-format-action@v4.11.0
         with:
-          clang-format-version: '14'
+          clang-format-version: '18'
           check-path: '.'
           fallback-style: 'LLVM'
           exclude-regex: '(\.git|\.github|dist|build|assets)'

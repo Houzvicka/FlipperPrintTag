@@ -22,7 +22,9 @@ void openprinttag_scene_display_on_enter(void* context) {
 
         if(!furi_string_empty(app->tag_data.main.material_name)) {
             furi_string_cat_printf(
-                temp_str, "Material: %s\n", furi_string_get_cstr(app->tag_data.main.material_name));
+                temp_str,
+                "Material: %s\n",
+                furi_string_get_cstr(app->tag_data.main.material_name));
         }
 
         // Material class (FFF/SLA)
@@ -35,7 +37,9 @@ void openprinttag_scene_display_on_enter(void* context) {
             furi_string_cat_printf(temp_str, "Type: %s\n", type_abbr);
         } else if(!furi_string_empty(app->tag_data.main.material_type_str)) {
             furi_string_cat_printf(
-                temp_str, "Type: %s\n", furi_string_get_cstr(app->tag_data.main.material_type_str));
+                temp_str,
+                "Type: %s\n",
+                furi_string_get_cstr(app->tag_data.main.material_type_str));
         }
 
         if(app->tag_data.main.gtin > 0) {
@@ -44,38 +48,47 @@ void openprinttag_scene_display_on_enter(void* context) {
 
         // Weights
         if(app->tag_data.main.actual_netto_full_weight > 0) {
-            furi_string_cat_printf(temp_str, "Weight: %lu g\n", app->tag_data.main.actual_netto_full_weight);
+            furi_string_cat_printf(
+                temp_str, "Weight: %lu g\n", app->tag_data.main.actual_netto_full_weight);
         }
 
         // FFF-specific
         if(app->tag_data.main.filament_diameter > 0) {
-            furi_string_cat_printf(temp_str, "Diameter: %.2f mm\n", (double)app->tag_data.main.filament_diameter);
+            furi_string_cat_printf(
+                temp_str, "Diameter: %.2f mm\n", (double)app->tag_data.main.filament_diameter);
         }
 
         if(app->tag_data.main.actual_full_length > 0) {
-            furi_string_cat_printf(temp_str, "Length: %.1f m\n", (double)(app->tag_data.main.actual_full_length / 1000.0f));
+            furi_string_cat_printf(
+                temp_str,
+                "Length: %.1f m\n",
+                (double)(app->tag_data.main.actual_full_length / 1000.0f));
         }
 
         // Print temperatures
         if(app->tag_data.main.min_print_temperature > 0) {
             if(app->tag_data.main.max_print_temperature > 0) {
                 furi_string_cat_printf(
-                    temp_str, "Nozzle: %ld-%ld°C\n",
+                    temp_str,
+                    "Nozzle: %ld-%ld°C\n",
                     app->tag_data.main.min_print_temperature,
                     app->tag_data.main.max_print_temperature);
             } else {
-                furi_string_cat_printf(temp_str, "Nozzle: %ld°C+\n", app->tag_data.main.min_print_temperature);
+                furi_string_cat_printf(
+                    temp_str, "Nozzle: %ld°C+\n", app->tag_data.main.min_print_temperature);
             }
         }
 
         if(app->tag_data.main.min_bed_temperature > 0) {
             if(app->tag_data.main.max_bed_temperature > 0) {
                 furi_string_cat_printf(
-                    temp_str, "Bed: %ld-%ld°C\n",
+                    temp_str,
+                    "Bed: %ld-%ld°C\n",
                     app->tag_data.main.min_bed_temperature,
                     app->tag_data.main.max_bed_temperature);
             } else {
-                furi_string_cat_printf(temp_str, "Bed: %ld°C+\n", app->tag_data.main.min_bed_temperature);
+                furi_string_cat_printf(
+                    temp_str, "Bed: %ld°C+\n", app->tag_data.main.min_bed_temperature);
             }
         }
     } else {
@@ -86,11 +99,13 @@ void openprinttag_scene_display_on_enter(void* context) {
         furi_string_cat_printf(temp_str, "\n--- Usage Data ---\n");
 
         if(app->tag_data.aux.consumed_weight > 0) {
-            furi_string_cat_printf(temp_str, "Consumed: %lu g\n", app->tag_data.aux.consumed_weight);
+            furi_string_cat_printf(
+                temp_str, "Consumed: %lu g\n", app->tag_data.aux.consumed_weight);
 
             // Calculate remaining if we have full weight
             if(app->tag_data.main.actual_netto_full_weight > 0) {
-                uint32_t remaining = app->tag_data.main.actual_netto_full_weight - app->tag_data.aux.consumed_weight;
+                uint32_t remaining = app->tag_data.main.actual_netto_full_weight -
+                                     app->tag_data.aux.consumed_weight;
                 furi_string_cat_printf(temp_str, "Remaining: %lu g\n", remaining);
             }
         }
@@ -101,7 +116,8 @@ void openprinttag_scene_display_on_enter(void* context) {
         }
 
         if(app->tag_data.aux.last_stir_time > 0) {
-            furi_string_cat_printf(temp_str, "Last stir: %llu\n", app->tag_data.aux.last_stir_time);
+            furi_string_cat_printf(
+                temp_str, "Last stir: %llu\n", app->tag_data.aux.last_stir_time);
         }
     }
 
