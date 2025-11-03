@@ -1,4 +1,5 @@
 #include "../openprinttag_i.h"
+#include "../material_types.h"
 
 void openprinttag_scene_display_on_enter(void* context) {
     OpenPrintTag* app = context;
@@ -23,17 +24,23 @@ void openprinttag_scene_display_on_enter(void* context) {
                 temp_str, "Material: %s\n", furi_string_get_cstr(app->tag_data.main.material_name));
         }
 
-        if(!furi_string_empty(app->tag_data.main.material_type)) {
+        // Material class (FFF/SLA)
+        const char* class_abbr = material_class_get_abbr(app->tag_data.main.material_class);
+        const char* class_name = material_class_get_name(app->tag_data.main.material_class);
+        furi_string_cat_printf(temp_str, "Class: %s (%s)\n", class_abbr, class_name);
+
+        // Material type (PLA, PETG, etc.)
+        if(app->tag_data.main.has_material_type_enum) {
+            const char* type_abbr = material_type_get_abbr(app->tag_data.main.material_type_enum);
+            const char* type_name = material_type_get_name(app->tag_data.main.material_type_enum);
+            furi_string_cat_printf(temp_str, "Type: %s (%s)\n", type_abbr, type_name);
+        } else if(!furi_string_empty(app->tag_data.main.material_type)) {
             furi_string_cat_printf(
                 temp_str, "Type: %s\n", furi_string_get_cstr(app->tag_data.main.material_type));
         }
 
         if(app->tag_data.main.gtin > 0) {
             furi_string_cat_printf(temp_str, "GTIN: %llu\n", app->tag_data.main.gtin);
-        }
-
-        if(app->tag_data.main.material_class > 0) {
-            furi_string_cat_printf(temp_str, "Class: %lu\n", app->tag_data.main.material_class);
         }
     } else {
         furi_string_cat_printf(temp_str, "No main data found\n");

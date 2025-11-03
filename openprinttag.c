@@ -99,7 +99,10 @@ static OpenPrintTag* openprinttag_alloc() {
     app->tag_data.main.brand = furi_string_alloc();
     app->tag_data.main.material_name = furi_string_alloc();
     app->tag_data.main.material_type = furi_string_alloc();
+    app->tag_data.main.material_type_enum = 0;
+    app->tag_data.main.material_class = 0;
     app->tag_data.main.has_data = false;
+    app->tag_data.main.has_material_type_enum = false;
     app->tag_data.aux.has_data = false;
     app->tag_data.raw_data = NULL;
     app->tag_data.raw_data_size = 0;

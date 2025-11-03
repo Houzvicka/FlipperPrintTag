@@ -27,9 +27,11 @@ typedef struct {
     FuriString* brand;
     FuriString* material_name;
     FuriString* material_type;
+    uint32_t material_type_enum; // If material_type is stored as enum instead of string
     uint32_t material_class;
     uint64_t gtin;
     bool has_data;
+    bool has_material_type_enum;
 } OpenPrintTagMain;
 
 typedef struct {

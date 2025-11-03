@@ -100,6 +100,11 @@ static bool parse_main_section(CborParser* parser, OpenPrintTagMain* main) {
                     (const char*)value.value.text.data,
                     value.value.text.size);
                 main->has_data = true;
+                main->has_material_type_enum = false;
+            } else if(value.type == CborValueTypeUnsigned) {
+                main->material_type_enum = (uint32_t)value.value.u64;
+                main->has_material_type_enum = true;
+                main->has_data = true;
             }
             break;
         case KEY_MATERIAL_CLASS:
