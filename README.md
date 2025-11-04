@@ -22,7 +22,10 @@ OpenPrintTag is an open-source NFC tag standard for 3D printing materials, devel
 - ✅ **Weight & Length**: Displays filament weight and length
 - ✅ **Usage Tracking**: Shows consumed weight and calculates remaining material
 - ✅ **Workgroup Support**: Displays workgroup information for shared materials
-- 🚧 Write/update auxiliary section (planned)
+- ✅ **Update Tag UI**: Interactive interface to adjust consumed weight with real-time remaining calculation
+- ✅ **CBOR Encoding**: Complete CBOR encoder for auxiliary section updates
+- ✅ **Data Validation**: Comprehensive validation before writing (size, alignment, capacity checks)
+- 🚧 NFC Write Commands: Data preparation complete, physical tag write pending ISO15693 poller API
 - 🚧 Create new OpenPrintTag tags (planned)
 
 ## Data Format
@@ -77,11 +80,27 @@ cd ..
 
 ## Usage
 
+### Reading Tags
+
 1. Open the **OpenPrintTag** app from the NFC category on your Flipper Zero
 2. Select **Read OpenPrintTag** from the menu
 3. Place your Flipper Zero near an OpenPrintTag NFC tag (typically on filament spool)
 4. Wait for tag detection (ISO15693/NFC-V tags)
 5. View the parsed material information
+
+### Updating Tag Usage
+
+1. Open the **OpenPrintTag** app
+2. Select **Update Tag** from the menu
+3. Place your Flipper Zero near the tag to read current data
+4. Use LEFT/RIGHT buttons to adjust **Consumed** weight (20g increments, 0-5000g range)
+5. Watch **Remaining** weight update in real-time
+6. Press OK on **Save to Tag** to encode and validate the update
+   - Data is encoded to CBOR format
+   - Validated against tag capacity
+   - Shows "Data encoded! (write pending)" on success
+   - Physical NFC write commands pending implementation
+7. Press BACK to cancel without saving
 
 ### Example Output
 
@@ -112,8 +131,10 @@ FlipperPrintTag/
 ├── openprinttag_i.h             # Internal header with data structures
 ├── openprinttag_fields.h        # OpenPrintTag field key definitions
 ├── cbor_parser.h/c              # CBOR decoder implementation
+├── cbor_encoder.h/c             # CBOR encoder implementation
 ├── ndef_parser.c                # NDEF record parser
 ├── openprinttag_parser.c        # OpenPrintTag-specific CBOR parser
+├── openprinttag_writer.c        # Auxiliary section CBOR encoder
 ├── material_types.h             # Material class and type enums
 ├── openprinttag.png             # App icon (10x10px)
 ├── scenes/                      # Scene implementations
@@ -121,7 +142,8 @@ FlipperPrintTag/
 │   ├── openprinttag_scene_read.c         # NFC scanner and poller
 │   ├── openprinttag_scene_read_success.c
 │   ├── openprinttag_scene_read_error.c
-│   └── openprinttag_scene_display.c      # Data display
+│   ├── openprinttag_scene_display.c      # Data display
+│   └── openprinttag_scene_write.c        # Update tag interface
 └── dist/                        # Build output
     └── openprinttag.fap         # Compiled application
 ```
@@ -152,19 +174,38 @@ FlipperPrintTag/
 - Weight information with usage tracking
 - Workgroup support for shared materials
 
+✅ **Update Tag Interface**
+- Variable Item List UI with real-time calculations
+- Consumed weight adjustment (20g increments, 0-5000g range)
+- Automatic remaining weight calculation
+- Material and total weight display
+
+✅ **Write Functionality (Data Preparation)**
+- Complete CBOR encoder supporting all data types (integers, strings, maps)
+- Auxiliary section encoding with proper field keys
+- Data validation (size limits, region boundaries, tag capacity)
+- Block offset calculation for auxiliary region
+- Error handling for all failure scenarios
+- Success feedback to user
+
 ### Limitations
 
-1. **Write Support**: Writing/updating tags is not yet implemented
+1. **NFC Write Commands**: Data encoding and validation is complete, but the actual ISO15693 block write commands to physically update the tag are not yet implemented. The app currently shows "Data encoded! (write pending)" upon successful validation.
 2. **Advanced Fields**: Some optional fields (colors, tags array, UUIDs) are parsed but not displayed
 3. **SLA-Specific**: SLA resin fields (viscosity, cure wavelength) parsed but not shown in UI
+4. **Write Scope**: Currently only updates consumed_weight field; workgroup and last_stir_time preserved from original tag
 
 ### Future Enhancements
 
-- Write support for updating auxiliary section (consumed weight, timestamps)
-- Display material tags (properties like "abrasive", "conductive", etc.)
-- Show color information (primary/secondary colors)
-- Support for creating new OpenPrintTag tags
-- Vendor-specific field handling
+- **ISO15693 Write Commands**: Implement actual NFC block write operations via poller API (data preparation is complete)
+- **Write Verification**: Read-back verification after writing to ensure data integrity
+- **Material Tags Display**: Show properties like "abrasive", "conductive", etc. (68 defined tags)
+- **Color Information**: Display primary/secondary color values
+- **Create New Tags**: Support for writing complete OpenPrintTag structure to blank tags
+- **Workgroup Editing**: Update workgroup field along with consumed weight in the UI
+- **Timestamp Updates**: Automatic last_stir_time updates for SLA resins
+- **Vendor Fields**: Support for vendor-specific extensions
+- **Multi-block Write**: Optimize write operations for larger auxiliary sections
 
 ## OpenPrintTag Field Reference
 
@@ -202,12 +243,14 @@ FlipperPrintTag/
 ## Contributing
 
 Contributions are welcome! Priority areas:
-- **Write Support**: Implement auxiliary section updates (consumed weight, timestamps)
+- **ISO15693 Write API**: Implement the final block write commands using Flipper's NFC poller API (CBOR encoder is complete)
+- **Write Verification**: Add read-back verification after writes
 - **Material Tags**: Display material property tags (68 defined tags for properties like abrasive, conductive, etc.)
 - **Color Display**: Show primary and secondary color information
 - **Extended Fields**: Display UUIDs, manufacturer dates, and vendor-specific fields
+- **Create Tag**: Implement writing complete OpenPrintTag structure to blank tags
 - **Error Handling**: Improved validation and error messages
-- **Testing**: Test with various OpenPrintTag implementations
+- **Testing**: Test with various OpenPrintTag implementations and real hardware
 
 See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for detailed implementation notes.
 

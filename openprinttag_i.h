@@ -10,6 +10,7 @@
 #include <gui/modules/widget.h>
 #include <gui/modules/popup.h>
 #include <gui/modules/loading.h>
+#include <gui/modules/variable_item_list.h>
 #include <nfc/nfc.h>
 #include <nfc/nfc_device.h>
 #include <nfc/nfc_scanner.h>
@@ -96,6 +97,7 @@ typedef enum {
     OpenPrintTagViewWidget,
     OpenPrintTagViewPopup,
     OpenPrintTagViewLoading,
+    OpenPrintTagViewVariableItemList,
 } OpenPrintTagView;
 
 // Main app structure
@@ -107,6 +109,7 @@ typedef struct OpenPrintTag {
     Widget* widget;
     Popup* popup;
     Loading* loading;
+    VariableItemList* variable_item_list;
 
     Nfc* nfc;
     NfcDevice* nfc_device;
@@ -115,6 +118,15 @@ typedef struct OpenPrintTag {
     NfcProtocol detected_protocol;
 
     OpenPrintTagData tag_data;
+    uint32_t temp_consumed_weight; // Temporary value for editing
+
+    // Write state
+    bool write_in_progress;
+    uint8_t* write_data;
+    size_t write_data_size;
+    uint16_t write_start_block;
+    uint16_t write_block_count;
+    uint16_t write_current_block;
 } OpenPrintTag;
 
 // Scene handlers
@@ -138,7 +150,18 @@ void openprinttag_scene_display_on_enter(void* context);
 bool openprinttag_scene_display_on_event(void* context, SceneManagerEvent event);
 void openprinttag_scene_display_on_exit(void* context);
 
+void openprinttag_scene_write_on_enter(void* context);
+bool openprinttag_scene_write_on_event(void* context, SceneManagerEvent event);
+void openprinttag_scene_write_on_exit(void* context);
+
 // Helper functions
 bool openprinttag_parse_ndef(OpenPrintTag* app, const uint8_t* data, size_t size);
 bool openprinttag_parse_cbor(OpenPrintTag* app, const uint8_t* payload, size_t size);
 void openprinttag_free_data(OpenPrintTagData* data);
+
+// Encode auxiliary section to CBOR
+size_t openprinttag_encode_auxiliary(
+    OpenPrintTag* app,
+    uint8_t* buffer,
+    size_t buffer_size,
+    uint32_t consumed_weight);

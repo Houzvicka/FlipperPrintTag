@@ -7,6 +7,7 @@ void (*const openprinttag_scene_on_enter_handlers[])(void*) = {
     openprinttag_scene_read_success_on_enter,
     openprinttag_scene_read_error_on_enter,
     openprinttag_scene_display_on_enter,
+    openprinttag_scene_write_on_enter,
 };
 
 // Scene on_event handlers
@@ -16,6 +17,7 @@ bool (*const openprinttag_scene_on_event_handlers[])(void*, SceneManagerEvent) =
     openprinttag_scene_read_success_on_event,
     openprinttag_scene_read_error_on_event,
     openprinttag_scene_display_on_event,
+    openprinttag_scene_write_on_event,
 };
 
 // Scene on_exit handlers
@@ -25,6 +27,7 @@ void (*const openprinttag_scene_on_exit_handlers[])(void*) = {
     openprinttag_scene_read_success_on_exit,
     openprinttag_scene_read_error_on_exit,
     openprinttag_scene_display_on_exit,
+    openprinttag_scene_write_on_exit,
 };
 
 static const SceneManagerHandlers openprinttag_scene_handlers = {
@@ -113,6 +116,12 @@ static OpenPrintTag* openprinttag_alloc() {
     view_dispatcher_add_view(
         app->view_dispatcher, OpenPrintTagViewLoading, loading_get_view(app->loading));
 
+    app->variable_item_list = variable_item_list_alloc();
+    view_dispatcher_add_view(
+        app->view_dispatcher,
+        OpenPrintTagViewVariableItemList,
+        variable_item_list_get_view(app->variable_item_list));
+
     // Initialize tag data
     app->tag_data.main.brand_name = furi_string_alloc();
     app->tag_data.main.material_name = furi_string_alloc();
@@ -151,6 +160,17 @@ static OpenPrintTag* openprinttag_alloc() {
     app->nfc_scanner = NULL;
     app->nfc_poller = NULL;
 
+    // Initialize temp editing values
+    app->temp_consumed_weight = 0;
+
+    // Initialize write state
+    app->write_in_progress = false;
+    app->write_data = NULL;
+    app->write_data_size = 0;
+    app->write_start_block = 0;
+    app->write_block_count = 0;
+    app->write_current_block = 0;
+
     // Start with main menu scene
     scene_manager_next_scene(app->scene_manager, OpenPrintTagSceneStart);
 
@@ -175,6 +195,9 @@ static void openprinttag_free(OpenPrintTag* app) {
 
     view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewLoading);
     loading_free(app->loading);
+
+    view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewVariableItemList);
+    variable_item_list_free(app->variable_item_list);
 
     // Scene manager
     scene_manager_free(app->scene_manager);

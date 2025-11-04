@@ -2,6 +2,7 @@
 
 typedef enum {
     SubmenuIndexRead,
+    SubmenuIndexWrite,
 } SubmenuIndex;
 
 static void openprinttag_scene_start_submenu_callback(void* context, uint32_t index) {
@@ -20,6 +21,9 @@ void openprinttag_scene_start_on_enter(void* context) {
         openprinttag_scene_start_submenu_callback,
         app);
 
+    submenu_add_item(
+        submenu, "Update Tag", SubmenuIndexWrite, openprinttag_scene_start_submenu_callback, app);
+
     submenu_set_selected_item(
         submenu, scene_manager_get_scene_state(app->scene_manager, OpenPrintTagSceneStart));
 
@@ -35,6 +39,11 @@ bool openprinttag_scene_start_on_event(void* context, SceneManagerEvent event) {
             scene_manager_set_scene_state(
                 app->scene_manager, OpenPrintTagSceneStart, SubmenuIndexRead);
             scene_manager_next_scene(app->scene_manager, OpenPrintTagSceneRead);
+            consumed = true;
+        } else if(event.event == SubmenuIndexWrite) {
+            scene_manager_set_scene_state(
+                app->scene_manager, OpenPrintTagSceneStart, SubmenuIndexWrite);
+            scene_manager_next_scene(app->scene_manager, OpenPrintTagSceneWrite);
             consumed = true;
         }
     }
