@@ -7,9 +7,6 @@ void openprinttag_scene_display_on_enter(void* context) {
 
     FuriString* temp_str = furi_string_alloc();
 
-    // Display tag information
-    widget_add_text_scroll_element(widget, 0, 0, 128, 64, furi_string_get_cstr(temp_str));
-
     // Build display string
     furi_string_cat_printf(temp_str, "OpenPrintTag Data\n\n");
 
@@ -131,8 +128,16 @@ void openprinttag_scene_display_on_enter(void* context) {
 }
 
 bool openprinttag_scene_display_on_event(void* context, SceneManagerEvent event) {
-    UNUSED(context);
-    UNUSED(event);
+    OpenPrintTag* app = context;
+
+    if(event.type == SceneManagerEventTypeBack) {
+        // The scene behind this one is the success popup, which would time out and open
+        // this screen again, so go straight back to the main menu
+        scene_manager_search_and_switch_to_previous_scene(
+            app->scene_manager, OpenPrintTagSceneStart);
+        return true;
+    }
+
     return false;
 }
 
