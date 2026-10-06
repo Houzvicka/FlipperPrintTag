@@ -4,6 +4,17 @@ Read, update and create OpenPrintTag NFC tags on 3D printing filament spools wit
 
 [OpenPrintTag](https://openprinttag.org/) is an open standard by Prusa Research that stores information about a printing material on an NFC-V (ISO 15693) tag: brand, material, type, color, temperatures, weights and how much of the spool is used up. This app is an independent community project and is not affiliated with Prusa Research.
 
+<p>
+<img src="screenshots/ss0.png" width="256" alt="Summary page: material, brand, remaining weight and temperatures">
+<img src="screenshots/ss1.png" width="256" alt="Details page: temperatures">
+<img src="screenshots/ss2.png" width="256" alt="Details page: weights">
+</p>
+<p>
+<img src="screenshots/ss3.png" width="256" alt="Identification page">
+<img src="screenshots/ss4.png" width="256" alt="Main menu">
+<img src="screenshots/ss5.png" width="256" alt="Form for creating a new tag">
+</p>
+
 ## What it does
 
 **Read OpenPrintTag** shows what is on a tag, in three pages. Left and Right switch between them, Up and Down scroll.
