@@ -1,6 +1,8 @@
 #include "../openprinttag_i.h"
 #include "../material_types.h"
 
+#include <furi_hal_random.h>
+
 // Creates a new OpenPrintTag on a blank tag:
 //   form -> hold a blank tag near the Flipper -> the tag image is built and written
 //
@@ -11,6 +13,8 @@ typedef enum {
     CreateItemBrand,
     CreateItemMaterial,
     CreateItemType,
+    CreateItemColor,
+    CreateItemDiameter,
     CreateItemWeight,
     CreateItemSpoolWeight,
     CreateItemNozzleMin,
@@ -27,6 +31,7 @@ typedef enum {
     CreatePhaseForm, // The form is shown
     CreatePhaseInput, // The text input or the number pad is shown
     CreatePhaseScan, // Waiting for a tag to read
+    CreatePhaseConfirm, // The tag has data, asking whether to replace it
     CreatePhaseWrite, // Writing the tag, waiting for it if it is not in the field
 } CreatePhase;
 
@@ -39,6 +44,8 @@ typedef enum {
     CreateEventWriteFailed = OpenPrintTagEventWriteFailed,
     CreateEventResultDismissed = 6, // Message shown, go back to the main menu
     CreateEventFailureDismissed = 7, // Message shown, go back to the form
+    CreateEventOverwriteConfirmed = 8, // The tag has data and it may be replaced
+    CreateEventOverwriteCancelled = 9,
     CreateEventItemClicked = 100, // Plus the index of the form row
 } CreateEvent;
 
@@ -120,6 +127,37 @@ static const char* create_number_header(uint8_t item) {
     }
 }
 
+// Parses an RRGGBB colour (an optional leading # is allowed). An empty text means no colour.
+static bool create_parse_color(const char* text, bool* has_color, uint8_t rgb[3]) {
+    if(text[0] == '#') text++;
+
+    if(text[0] == '\0') {
+        *has_color = false;
+        return true;
+    }
+    if(strlen(text) != 6) return false;
+
+    uint8_t parsed[3];
+    for(size_t i = 0; i < 6; i++) {
+        const char c = text[i];
+        uint8_t digit;
+        if(c >= '0' && c <= '9') {
+            digit = c - '0';
+        } else if(c >= 'a' && c <= 'f') {
+            digit = c - 'a' + 10;
+        } else if(c >= 'A' && c <= 'F') {
+            digit = c - 'A' + 10;
+        } else {
+            return false;
+        }
+        parsed[i / 2] = (i % 2 == 0) ? (digit << 4) : (parsed[i / 2] | digit);
+    }
+
+    memcpy(rgb, parsed, sizeof(parsed));
+    *has_color = true;
+    return true;
+}
+
 static void create_update_item(OpenPrintTag* app, uint8_t item) {
     VariableItem* row = app->create_items[item];
     if(!row) return;
@@ -140,6 +178,22 @@ static void create_update_item(OpenPrintTag* app, uint8_t item) {
     }
     case CreateItemType:
         snprintf(text, sizeof(text), "%.12s", material_types[app->create.type_index].abbreviation);
+        break;
+    case CreateItemColor:
+        if(app->create.has_color) {
+            snprintf(
+                text,
+                sizeof(text),
+                "#%02X%02X%02X",
+                app->create.color[0],
+                app->create.color[1],
+                app->create.color[2]);
+        } else {
+            snprintf(text, sizeof(text), "-");
+        }
+        break;
+    case CreateItemDiameter:
+        snprintf(text, sizeof(text), "%s mm", app->create.diameter_index == 1 ? "2.85" : "1.75");
         break;
     default: {
         const uint32_t* field = create_number_field(app, item);
@@ -165,6 +219,12 @@ static void create_type_change_callback(VariableItem* item) {
     create_update_item(app, CreateItemType);
 }
 
+static void create_diameter_change_callback(VariableItem* item) {
+    OpenPrintTag* app = variable_item_get_context(item);
+    app->create.diameter_index = variable_item_get_current_value_index(item);
+    create_update_item(app, CreateItemDiameter);
+}
+
 static void create_item_click_callback(void* context, uint32_t index) {
     OpenPrintTag* app = context;
     view_dispatcher_send_custom_event(app->view_dispatcher, CreateEventItemClicked + index);
@@ -187,6 +247,14 @@ static void create_build_form(OpenPrintTag* app) {
         list, "Type", MATERIAL_TYPES_COUNT, create_type_change_callback, app);
     variable_item_set_current_value_index(
         app->create_items[CreateItemType], app->create.type_index);
+
+    app->create_items[CreateItemColor] = variable_item_list_add(list, "Color", 1, NULL, app);
+
+    // Left/right chooses between the two common filament diameters
+    app->create_items[CreateItemDiameter] =
+        variable_item_list_add(list, "Diameter", 2, create_diameter_change_callback, app);
+    variable_item_set_current_value_index(
+        app->create_items[CreateItemDiameter], app->create.diameter_index);
 
     app->create_items[CreateItemWeight] = variable_item_list_add(list, "Weight g", 1, NULL, app);
     app->create_items[CreateItemSpoolWeight] =
@@ -268,19 +336,37 @@ static void create_number_done_callback(void* context, uint32_t value) {
 }
 
 static void create_open_text_input(OpenPrintTag* app, uint8_t item) {
-    const char* current = item == CreateItemBrand ? app->create.brand : app->create.material;
-    snprintf(app->text_buffer, sizeof(app->text_buffer), "%s", current);
+    const char* header;
+    size_t buffer_size; // Including the terminator, the text input stops at this length
+
+    if(item == CreateItemBrand) {
+        header = "Brand";
+        buffer_size = OPENPRINTTAG_BRAND_MAX + 1;
+        snprintf(app->text_buffer, sizeof(app->text_buffer), "%s", app->create.brand);
+    } else if(item == CreateItemMaterial) {
+        header = "Material name";
+        buffer_size = OPENPRINTTAG_MATERIAL_MAX + 1;
+        snprintf(app->text_buffer, sizeof(app->text_buffer), "%s", app->create.material);
+    } else {
+        header = "Color as RRGGBB";
+        buffer_size = 8; // 6 hex digits, an optional # and the terminator
+        if(app->create.has_color) {
+            snprintf(
+                app->text_buffer,
+                sizeof(app->text_buffer),
+                "%02X%02X%02X",
+                app->create.color[0],
+                app->create.color[1],
+                app->create.color[2]);
+        } else {
+            app->text_buffer[0] = '\0';
+        }
+    }
 
     text_input_reset(app->text_input);
-    text_input_set_header_text(
-        app->text_input, item == CreateItemBrand ? "Brand" : "Material name");
+    text_input_set_header_text(app->text_input, header);
     text_input_set_result_callback(
-        app->text_input,
-        create_text_done_callback,
-        app,
-        app->text_buffer,
-        sizeof(app->text_buffer),
-        false);
+        app->text_input, create_text_done_callback, app, app->text_buffer, buffer_size, false);
 
     app->create_editing = item;
     app->create_phase = CreatePhaseInput;
@@ -338,7 +424,7 @@ static void create_start_scan(OpenPrintTag* app) {
         return;
     }
 
-    create_show_waiting(app, "Create tag", "Hold a blank tag", "near Flipper");
+    create_show_waiting(app, "Create tag", "Hold the tag", "near Flipper");
 
     app->read_retries = 0;
     app->create_phase = CreatePhaseScan;
@@ -346,8 +432,8 @@ static void create_start_scan(OpenPrintTag* app) {
     nfc_scanner_start(app->nfc_scanner, create_scanner_callback, app);
 }
 
-// A tag can be written when it has no NDEF message: all zero, or a capability container that is
-// followed by nothing, an empty NDEF TLV or the terminator
+// A tag is blank, and is written without asking, when it has no NDEF message: all zero, or a
+// capability container that is followed by nothing, an empty NDEF TLV or the terminator
 static bool create_tag_is_blank(const uint8_t* memory, size_t size) {
     if(size < 8) return false;
 
@@ -369,7 +455,85 @@ static bool create_tag_is_blank(const uint8_t* memory, size_t size) {
     return tlv == 0x00 || tlv == 0xFE || (tlv == 0x03 && memory[offset + 1] == 0x00);
 }
 
-// The tag was read: check it is blank, build the image and start writing it
+// Builds the image for the tag the poller has read and starts writing it. The whole tag is
+// written, so nothing of an earlier message is left behind after the terminator.
+static void create_write_tag(OpenPrintTag* app) {
+    const Iso15693_3Data* iso_data = nfc_poller_get_data(app->nfc_poller);
+    const uint16_t block_count = iso15693_3_get_block_count(iso_data);
+    const uint8_t block_size = iso15693_3_get_block_size(iso_data);
+    const size_t capacity = (size_t)block_count * block_size;
+
+    // A random version 4 UUID identifies this spool, like the other apps do
+    furi_hal_random_fill_buf(app->create.instance_uuid, sizeof(app->create.instance_uuid));
+    app->create.instance_uuid[6] = (app->create.instance_uuid[6] & 0x0F) | 0x40;
+    app->create.instance_uuid[8] = (app->create.instance_uuid[8] & 0x3F) | 0x80;
+
+    uint8_t* write_data = malloc(capacity);
+    const size_t used =
+        openprinttag_build_tag_image(&app->create, capacity, block_size, write_data);
+    if(used == 0) {
+        free(write_data);
+        create_stop_poller(app);
+        create_show_result(app, "Error", "Data does not\nfit on this tag", true);
+        return;
+    }
+
+    create_free_write_data(app);
+    app->write_data = write_data;
+    app->write_data_size = capacity;
+    app->write_start_block = 0;
+    app->write_block_count = block_count;
+    app->write_current_block = 0;
+    app->write_attempts = 0;
+    app->write_in_progress = true;
+
+    // Address the write to this tag. The stored UID is reversed relative to the sent order.
+    for(size_t i = 0; i < ISO15693_3_UID_SIZE; i++) {
+        app->write_uid[i] = iso_data->uid[ISO15693_3_UID_SIZE - 1 - i];
+    }
+
+    FURI_LOG_I(
+        TAG,
+        "Creating tag: %zu bytes of a %zu byte tag (%d blocks of %d)",
+        used,
+        capacity,
+        block_count,
+        block_size);
+
+    // The read poller has finished, replace it with the one that writes
+    create_stop_poller(app);
+    app->create_phase = CreatePhaseWrite;
+    create_show_waiting(app, "Writing tag", "Keep the tag", "near Flipper");
+    app->nfc_poller = nfc_poller_alloc(app->nfc, NfcProtocolIso15693_3);
+    nfc_poller_start_ex(app->nfc_poller, openprinttag_tag_write_callback, app);
+}
+
+static void create_dialog_callback(DialogExResult result, void* context) {
+    OpenPrintTag* app = context;
+
+    if(result == DialogExResultRight) {
+        view_dispatcher_send_custom_event(app->view_dispatcher, CreateEventOverwriteConfirmed);
+    } else if(result == DialogExResultLeft) {
+        view_dispatcher_send_custom_event(app->view_dispatcher, CreateEventOverwriteCancelled);
+    }
+}
+
+// Asks whether the data on the tag may be replaced. The poller is kept, it holds the tag data.
+static void create_ask_overwrite(OpenPrintTag* app) {
+    DialogEx* dialog = app->dialog_ex;
+    dialog_ex_reset(dialog);
+    dialog_ex_set_header(dialog, "Tag has data", 64, 4, AlignCenter, AlignTop);
+    dialog_ex_set_text(dialog, "Replace it with\nthe new data?", 64, 24, AlignCenter, AlignTop);
+    dialog_ex_set_left_button_text(dialog, "Cancel");
+    dialog_ex_set_right_button_text(dialog, "Replace");
+    dialog_ex_set_context(dialog, app);
+    dialog_ex_set_result_callback(dialog, create_dialog_callback);
+
+    app->create_phase = CreatePhaseConfirm;
+    view_dispatcher_switch_to_view(app->view_dispatcher, OpenPrintTagViewDialog);
+}
+
+// The tag was read: ask before replacing data, otherwise build the image and write it
 static void create_handle_tag_read(OpenPrintTag* app) {
     // A tag that was reported without blocks is read again with a new poller
     const OpenPrintTagReadCheck check = openprinttag_check_read(app, create_poller_callback);
@@ -401,54 +565,11 @@ static void create_handle_tag_read(OpenPrintTag* app) {
     free(memory);
 
     if(!blank) {
-        create_stop_poller(app);
-        create_show_result(app, "Tag not empty", "Use a blank tag", true);
+        create_ask_overwrite(app);
         return;
     }
 
-    // Build the whole image, then pad it to full blocks for writing
-    uint8_t* image = malloc(capacity);
-    const size_t used = openprinttag_build_tag_image(&app->create, capacity, image);
-    if(used == 0) {
-        free(image);
-        create_stop_poller(app);
-        create_show_result(app, "Error", "Data does not\nfit on this tag", true);
-        return;
-    }
-
-    const uint16_t blocks = (used + block_size - 1) / block_size;
-    uint8_t* write_data = malloc((size_t)blocks * block_size);
-    memcpy(write_data, image, (size_t)blocks * block_size); // The image is zero padded
-    free(image);
-
-    create_free_write_data(app);
-    app->write_data = write_data;
-    app->write_data_size = (size_t)blocks * block_size;
-    app->write_start_block = 0;
-    app->write_block_count = blocks;
-    app->write_current_block = 0;
-    app->write_attempts = 0;
-    app->write_in_progress = true;
-
-    // Address the write to this tag. The stored UID is reversed relative to the sent order.
-    for(size_t i = 0; i < ISO15693_3_UID_SIZE; i++) {
-        app->write_uid[i] = iso_data->uid[ISO15693_3_UID_SIZE - 1 - i];
-    }
-
-    FURI_LOG_I(
-        TAG,
-        "Creating tag: %zu bytes in %d blocks of %d (tag capacity %zu)",
-        used,
-        blocks,
-        block_size,
-        capacity);
-
-    // The read poller has finished, replace it with the one that writes
-    create_stop_poller(app);
-    app->create_phase = CreatePhaseWrite;
-    create_show_waiting(app, "Writing tag", "Keep the tag", "near Flipper");
-    app->nfc_poller = nfc_poller_alloc(app->nfc, NfcProtocolIso15693_3);
-    nfc_poller_start_ex(app->nfc_poller, openprinttag_tag_write_callback, app);
+    create_write_tag(app);
 }
 
 // ---- Scene ------------------------------------------------------------------------------------
@@ -471,17 +592,29 @@ bool openprinttag_scene_create_on_event(void* context, SceneManagerEvent event) 
            event.event < CreateEventItemClicked + CreateItemCount) {
             const uint8_t item = event.event - CreateEventItemClicked;
 
-            if(item == CreateItemBrand || item == CreateItemMaterial) {
+            if(item == CreateItemBrand || item == CreateItemMaterial || item == CreateItemColor) {
                 create_open_text_input(app, item);
             } else if(item == CreateItemWrite) {
                 create_start_scan(app);
-            } else if(item != CreateItemType) {
+            } else if(item != CreateItemType && item != CreateItemDiameter) {
                 create_open_number_pad(app, item);
             }
         } else if(event.event == CreateEventTextEntered) {
-            char* field = app->create_editing == CreateItemBrand ? app->create.brand :
-                                                                   app->create.material;
-            snprintf(field, OPENPRINTTAG_TEXT_MAX + 1, "%s", app->text_buffer);
+            if(app->create_editing == CreateItemColor) {
+                if(!create_parse_color(
+                       app->text_buffer, &app->create.has_color, app->create.color)) {
+                    create_show_result(
+                        app, "Invalid color", "Use 6 hex digits,\ne.g. FF8800", true);
+                    return true;
+                }
+            } else if(app->create_editing == CreateItemBrand) {
+                // The precision keeps the compiler sure the text fits (BRAND_MAX is 31)
+                snprintf(app->create.brand, sizeof(app->create.brand), "%.31s", app->text_buffer);
+            } else {
+                // MATERIAL_MAX is 63
+                snprintf(
+                    app->create.material, sizeof(app->create.material), "%.63s", app->text_buffer);
+            }
             create_update_item(app, app->create_editing);
             create_show_form(app);
         } else if(event.event == CreateEventNumberEntered) {
@@ -493,6 +626,11 @@ bool openprinttag_scene_create_on_event(void* context, SceneManagerEvent event) 
             nfc_poller_start(app->nfc_poller, create_poller_callback, app);
         } else if(event.event == CreateEventTagRead) {
             create_handle_tag_read(app);
+        } else if(event.event == CreateEventOverwriteConfirmed) {
+            create_write_tag(app);
+        } else if(event.event == CreateEventOverwriteCancelled) {
+            create_stop_poller(app);
+            create_show_form(app);
         } else if(event.event == CreateEventWriteDone) {
             create_stop_poller(app);
             create_free_write_data(app);
@@ -514,7 +652,9 @@ bool openprinttag_scene_create_on_event(void* context, SceneManagerEvent event) 
             // Leave the text input or number pad without changing the value
             create_show_form(app);
             consumed = true;
-        } else if(app->create_phase == CreatePhaseScan || app->create_phase == CreatePhaseWrite) {
+        } else if(
+            app->create_phase == CreatePhaseScan || app->create_phase == CreatePhaseConfirm ||
+            app->create_phase == CreatePhaseWrite) {
             // Cancel scanning or writing, the form still holds everything that was entered
             create_stop_scanner(app);
             create_stop_poller(app);

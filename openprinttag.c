@@ -133,6 +133,10 @@ static OpenPrintTag* openprinttag_alloc() {
         app->view_dispatcher, OpenPrintTagViewTextInput, text_input_get_view(app->text_input));
     app->text_buffer[0] = '\0';
 
+    app->dialog_ex = dialog_ex_alloc();
+    view_dispatcher_add_view(
+        app->view_dispatcher, OpenPrintTagViewDialog, dialog_ex_get_view(app->dialog_ex));
+
     app->write_remaining_item = NULL;
     app->write_consumed_item = NULL;
     app->write_number_input_active = false;
@@ -237,6 +241,9 @@ static void openprinttag_free(OpenPrintTag* app) {
 
     view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewTextInput);
     text_input_free(app->text_input);
+
+    view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewDialog);
+    dialog_ex_free(app->dialog_ex);
 
     // Scene manager
     scene_manager_free(app->scene_manager);
