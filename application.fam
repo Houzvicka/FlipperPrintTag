@@ -7,12 +7,11 @@ App(
     fap_category="NFC",
     fap_version="1.0",
     fap_icon="openprinttag.png",
-    fap_description="Read and write OpenPrintTag NFC tags for 3D printing materials",
+    fap_description="Read, update and create OpenPrintTag NFC tags for 3D printing filament",
     fap_author="Houzvicka",
     fap_weburl="https://github.com/Houzvicka/FlipperPrintTag",
     requires=[
         "gui",
         "nfc",
     ],
-    fap_icon_assets="assets",
 )
