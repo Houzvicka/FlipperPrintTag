@@ -103,6 +103,10 @@ typedef enum {
     OpenPrintTagViewNumberInput,
 } OpenPrintTagView;
 
+// Custom events sent by openprinttag_tag_write_callback() to the scene that started it
+#define OpenPrintTagEventWriteDone   (0x100U)
+#define OpenPrintTagEventWriteFailed (0x101U)
+
 // Main app structure
 typedef struct OpenPrintTag {
     Gui* gui;
@@ -131,6 +135,15 @@ typedef struct OpenPrintTag {
     uint16_t write_start_block;
     uint16_t write_block_count;
     uint16_t write_current_block;
+    uint8_t write_uid[ISO15693_3_UID_SIZE]; // UID of the tag that was read, in wire order
+    uint8_t write_attempts; // Rounds in which the tag answered but the write did not stick
+
+    // Items of the edit screen, kept so their texts can follow the entered value
+    VariableItem* write_remaining_item;
+    VariableItem* write_consumed_item;
+    bool write_number_input_active; // The number keyboard is the visible view
+    bool write_number_input_additive; // The entered number is added to the total, not set
+
 } OpenPrintTag;
 
 // Scene handlers
@@ -162,6 +175,12 @@ void openprinttag_scene_write_on_exit(void* context);
 bool openprinttag_parse_ndef(OpenPrintTag* app, const uint8_t* data, size_t size);
 bool openprinttag_parse_cbor(OpenPrintTag* app, const uint8_t* payload, size_t size);
 void openprinttag_free_data(OpenPrintTagData* data);
+
+// Writes app->write_data (blocks starting at app->write_start_block) to the tag whose UID is in
+// app->write_uid. Start it with nfc_poller_start_ex() on an ISO15693-3 poller. It waits until the
+// tag is in the field, skips blocks that already hold the data and verifies every block by reading
+// it back. It sends OpenPrintTagEventWriteDone or OpenPrintTagEventWriteFailed when finished.
+NfcCommand openprinttag_tag_write_callback(NfcGenericEventEx event, void* context);
 
 // Encode auxiliary section to CBOR
 size_t openprinttag_encode_auxiliary(

@@ -3,7 +3,7 @@ App(
     name="OpenPrintTag",
     apptype=FlipperAppType.EXTERNAL,
     entry_point="openprinttag_app",
-    stack_size=2 * 1024,
+    stack_size=4 * 1024,
     fap_category="NFC",
     fap_version="1.0",
     fap_icon="openprinttag.png",

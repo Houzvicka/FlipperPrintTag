@@ -125,6 +125,11 @@ static OpenPrintTag* openprinttag_alloc() {
     app->numpad = numpad_alloc();
     view_dispatcher_add_view(
         app->view_dispatcher, OpenPrintTagViewNumberInput, numpad_get_view(app->numpad));
+    app->write_remaining_item = NULL;
+    app->write_consumed_item = NULL;
+    app->write_number_input_active = false;
+    app->write_number_input_additive = false;
+
     // Initialize tag data
     app->tag_data.main.brand_name = furi_string_alloc();
     app->tag_data.main.material_name = furi_string_alloc();
@@ -175,6 +180,8 @@ static OpenPrintTag* openprinttag_alloc() {
     app->write_start_block = 0;
     app->write_block_count = 0;
     app->write_current_block = 0;
+    memset(app->write_uid, 0, sizeof(app->write_uid));
+    app->write_attempts = 0;
 
     // Start with main menu scene
     scene_manager_next_scene(app->scene_manager, OpenPrintTagSceneStart);
