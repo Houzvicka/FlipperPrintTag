@@ -11,6 +11,7 @@
 #include <gui/modules/popup.h>
 #include <gui/modules/loading.h>
 #include <gui/modules/variable_item_list.h>
+#include "numpad.h"
 #include <nfc/nfc.h>
 #include <nfc/nfc_device.h>
 #include <nfc/nfc_scanner.h>
@@ -99,6 +100,7 @@ typedef enum {
     OpenPrintTagViewPopup,
     OpenPrintTagViewLoading,
     OpenPrintTagViewVariableItemList,
+    OpenPrintTagViewNumberInput,
 } OpenPrintTagView;
 
 // Main app structure
@@ -111,6 +113,7 @@ typedef struct OpenPrintTag {
     Popup* popup;
     Loading* loading;
     VariableItemList* variable_item_list;
+    NumPad* numpad;
 
     Nfc* nfc;
     NfcDevice* nfc_device;

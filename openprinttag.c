@@ -122,6 +122,9 @@ static OpenPrintTag* openprinttag_alloc() {
         OpenPrintTagViewVariableItemList,
         variable_item_list_get_view(app->variable_item_list));
 
+    app->numpad = numpad_alloc();
+    view_dispatcher_add_view(
+        app->view_dispatcher, OpenPrintTagViewNumberInput, numpad_get_view(app->numpad));
     // Initialize tag data
     app->tag_data.main.brand_name = furi_string_alloc();
     app->tag_data.main.material_name = furi_string_alloc();
@@ -200,6 +203,9 @@ static void openprinttag_free(OpenPrintTag* app) {
 
     view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewVariableItemList);
     variable_item_list_free(app->variable_item_list);
+
+    view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewNumberInput);
+    numpad_free(app->numpad);
 
     // Scene manager
     scene_manager_free(app->scene_manager);
