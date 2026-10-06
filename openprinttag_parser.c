@@ -16,6 +16,19 @@ static bool cbor_value_to_float(const CborValue* value, float* out) {
     return false;
 }
 
+// Whole-number fields that the specification types as "number" can also be stored as floats
+static bool cbor_value_to_uint32(const CborValue* value, uint32_t* out) {
+    if(value->type == CborValueTypeUnsigned) {
+        *out = (uint32_t)value->value.u64;
+        return true;
+    }
+    if(value->type == CborValueTypeFloat && value->value.f32 >= 0) {
+        *out = (uint32_t)(value->value.f32 + 0.5f);
+        return true;
+    }
+    return false;
+}
+
 static bool parse_meta_section(CborParser* parser, OpenPrintTagMeta* meta) {
     size_t count;
     if(!cbor_parse_map(parser, &count)) return false;
@@ -143,19 +156,13 @@ static bool parse_main_section(CborParser* parser, OpenPrintTagMain* main) {
 
         // Weights
         case MAIN_NOMINAL_NETTO_FULL_WEIGHT:
-            if(value.type == CborValueTypeUnsigned) {
-                main->nominal_netto_full_weight = (uint32_t)value.value.u64;
-            }
+            cbor_value_to_uint32(&value, &main->nominal_netto_full_weight);
             break;
         case MAIN_ACTUAL_NETTO_FULL_WEIGHT:
-            if(value.type == CborValueTypeUnsigned) {
-                main->actual_netto_full_weight = (uint32_t)value.value.u64;
-            }
+            cbor_value_to_uint32(&value, &main->actual_netto_full_weight);
             break;
         case MAIN_EMPTY_CONTAINER_WEIGHT:
-            if(value.type == CborValueTypeUnsigned) {
-                main->empty_container_weight = (uint32_t)value.value.u64;
-            }
+            cbor_value_to_uint32(&value, &main->empty_container_weight);
             break;
 
         // Timestamps
@@ -244,8 +251,7 @@ static bool parse_aux_section(CborParser* parser, OpenPrintTagAux* aux) {
 
         switch(key_id) {
         case AUX_CONSUMED_WEIGHT:
-            if(value.type == CborValueTypeUnsigned) {
-                aux->consumed_weight = (uint32_t)value.value.u64;
+            if(cbor_value_to_uint32(&value, &aux->consumed_weight)) {
                 aux->has_data = true;
             }
             break;

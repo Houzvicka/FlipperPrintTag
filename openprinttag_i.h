@@ -236,7 +236,9 @@ NfcCommand openprinttag_tag_write_callback(NfcGenericEventEx event, void* contex
 size_t
     openprinttag_build_tag_image(const OpenPrintTagCreateData* data, size_t capacity, uint8_t* out);
 
-// Encode auxiliary section to CBOR
+// Encodes the auxiliary section with a new consumed weight. Every other field already in the
+// tag's auxiliary section is copied as it is, known or not, as the specification requires.
+// Returns the encoded size, or 0 if it does not fit into buffer_size.
 size_t openprinttag_encode_auxiliary(
     OpenPrintTag* app,
     uint8_t* buffer,
