@@ -51,14 +51,6 @@ static NfcCommand openprinttag_write_poller_callback(NfcGenericEvent event, void
     OpenPrintTag* app = context;
 
     if(event.protocol == NfcProtocolIso15693_3) {
-        // The poller also reports failed activations (tag moved, weak coupling). Those leave the
-        // tag data empty, so only a read that found blocks counts; otherwise keep trying.
-        const Iso15693_3Data* data = nfc_poller_get_data(app->nfc_poller);
-        if(iso15693_3_get_block_count(data) == 0 || iso15693_3_get_block_size(data) == 0) {
-            FURI_LOG_W(TAG, "Write poller: no tag data read, retrying");
-            return NfcCommandContinue;
-        }
-
         view_dispatcher_send_custom_event(app->view_dispatcher, WriteEventTagRead);
         return NfcCommandStop;
     }
@@ -298,6 +290,7 @@ static void openprinttag_write_start(OpenPrintTag* app) {
 
 void openprinttag_scene_write_on_enter(void* context) {
     OpenPrintTag* app = context;
+    app->read_retries = 0;
 
     // Show popup with scanning message. The popup is reset first so no timeout, callback or
     // text from an earlier popup is left over.
@@ -336,6 +329,15 @@ bool openprinttag_scene_write_on_event(void* context, SceneManagerEvent event) {
             // Reading complete. The poller callback already returned NfcCommandStop; the poller
             // is stopped exactly once later by write_stop_poller() (a second nfc_poller_stop()
             // fails a furi_check inside nfc_stop and crashes the app).
+
+            // A tag that was reported without blocks is read again with a new poller
+            const OpenPrintTagReadCheck check =
+                openprinttag_check_read(app, openprinttag_write_poller_callback);
+            if(check == OpenPrintTagReadRetried) return true;
+            if(check == OpenPrintTagReadFailed) {
+                write_show_result(app, "Error", "Failed to read\nthe tag", false);
+                return true;
+            }
 
             // Get the ISO15693 data from the POLLER
             const NfcDeviceData* poller_data = nfc_poller_get_data(app->nfc_poller);

@@ -159,6 +159,7 @@ typedef struct OpenPrintTag {
     uint16_t write_current_block;
     uint8_t write_uid[ISO15693_3_UID_SIZE]; // UID of the tag that was read, in wire order
     uint8_t write_attempts; // Rounds in which the tag answered but the write did not stick
+    uint8_t read_retries; // Times reading the tag was started again, see openprinttag_check_read()
 
     // Items of the edit screen, kept so their texts can follow the entered value
     VariableItem* write_remaining_item;
@@ -206,6 +207,22 @@ void openprinttag_scene_create_on_exit(void* context);
 bool openprinttag_parse_ndef(OpenPrintTag* app, const uint8_t* data, size_t size);
 bool openprinttag_parse_cbor(OpenPrintTag* app, const uint8_t* payload, size_t size);
 void openprinttag_free_data(OpenPrintTagData* data);
+
+// How often reading a tag is started again when the poller reports it without any blocks
+#define OPENPRINTTAG_READ_RETRIES        (20U)
+#define OPENPRINTTAG_READ_RETRY_DELAY_MS (50U)
+
+typedef enum {
+    OpenPrintTagReadOk, // The poller read the tag's blocks
+    OpenPrintTagReadRetried, // No blocks, a new poller was started and the callback runs again
+    OpenPrintTagReadFailed, // No blocks and no retries left
+} OpenPrintTagReadCheck;
+
+// Call when the read poller (started with nfc_poller_start()) has reported the tag and its
+// callback returned NfcCommandStop. A tag that answers the inventory request but not the ones
+// after it (moved away, weak coupling) is reported with empty data, and the poller never reads it
+// again by itself, so the poller is replaced by a new one that starts over with the same callback.
+OpenPrintTagReadCheck openprinttag_check_read(OpenPrintTag* app, NfcGenericCallback callback);
 
 // Writes app->write_data (blocks starting at app->write_start_block) to the tag whose UID is in
 // app->write_uid. Start it with nfc_poller_start_ex() on an ISO15693-3 poller. It waits until the

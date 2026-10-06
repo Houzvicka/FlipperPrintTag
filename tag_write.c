@@ -173,3 +173,22 @@ NfcCommand openprinttag_tag_write_callback(NfcGenericEventEx event, void* contex
     furi_delay_ms(WRITE_WAIT_MS);
     return NfcCommandContinue;
 }
+
+OpenPrintTagReadCheck openprinttag_check_read(OpenPrintTag* app, NfcGenericCallback callback) {
+    const Iso15693_3Data* data = nfc_poller_get_data(app->nfc_poller);
+    if(iso15693_3_get_block_count(data) > 0 && iso15693_3_get_block_size(data) > 0) {
+        return OpenPrintTagReadOk;
+    }
+
+    if(app->read_retries >= OPENPRINTTAG_READ_RETRIES) return OpenPrintTagReadFailed;
+    app->read_retries++;
+
+    // The poller was stopped by its callback, it still has to be stopped once before it is freed
+    nfc_poller_stop(app->nfc_poller);
+    nfc_poller_free(app->nfc_poller);
+    furi_delay_ms(OPENPRINTTAG_READ_RETRY_DELAY_MS);
+
+    app->nfc_poller = nfc_poller_alloc(app->nfc, NfcProtocolIso15693_3);
+    nfc_poller_start(app->nfc_poller, callback, app);
+    return OpenPrintTagReadRetried;
+}

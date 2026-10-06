@@ -202,6 +202,7 @@ static OpenPrintTag* openprinttag_alloc() {
     app->write_current_block = 0;
     memset(app->write_uid, 0, sizeof(app->write_uid));
     app->write_attempts = 0;
+    app->read_retries = 0;
 
     // Start with main menu scene
     scene_manager_next_scene(app->scene_manager, OpenPrintTagSceneStart);

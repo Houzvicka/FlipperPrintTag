@@ -325,12 +325,6 @@ static NfcCommand create_poller_callback(NfcGenericEvent event, void* context) {
     OpenPrintTag* app = context;
 
     if(event.protocol == NfcProtocolIso15693_3) {
-        // Failed activations leave the tag data empty, keep trying until blocks were read
-        const Iso15693_3Data* data = nfc_poller_get_data(app->nfc_poller);
-        if(iso15693_3_get_block_count(data) == 0 || iso15693_3_get_block_size(data) == 0) {
-            return NfcCommandContinue;
-        }
-
         view_dispatcher_send_custom_event(app->view_dispatcher, CreateEventTagRead);
         return NfcCommandStop;
     }
@@ -346,6 +340,7 @@ static void create_start_scan(OpenPrintTag* app) {
 
     create_show_waiting(app, "Create tag", "Hold a blank tag", "near Flipper");
 
+    app->read_retries = 0;
     app->create_phase = CreatePhaseScan;
     app->nfc_scanner = nfc_scanner_alloc(app->nfc);
     nfc_scanner_start(app->nfc_scanner, create_scanner_callback, app);
@@ -376,6 +371,15 @@ static bool create_tag_is_blank(const uint8_t* memory, size_t size) {
 
 // The tag was read: check it is blank, build the image and start writing it
 static void create_handle_tag_read(OpenPrintTag* app) {
+    // A tag that was reported without blocks is read again with a new poller
+    const OpenPrintTagReadCheck check = openprinttag_check_read(app, create_poller_callback);
+    if(check == OpenPrintTagReadRetried) return;
+    if(check == OpenPrintTagReadFailed) {
+        create_stop_poller(app);
+        create_show_result(app, "Error", "Failed to read\nthe tag", true);
+        return;
+    }
+
     const Iso15693_3Data* iso_data = nfc_poller_get_data(app->nfc_poller);
     const uint16_t block_count = iso15693_3_get_block_count(iso_data);
     const uint8_t block_size = iso15693_3_get_block_size(iso_data);
