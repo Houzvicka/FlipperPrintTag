@@ -64,6 +64,21 @@ typedef struct {
     size_t tags_count;
 
     bool has_data;
+    // More temperatures (degrees C, 0 = not stored) and drying (time in minutes)
+    int32_t preheat_temperature;
+    int32_t min_chamber_temperature;
+    int32_t max_chamber_temperature;
+    int32_t chamber_temperature;
+    int32_t drying_temperature;
+    uint32_t drying_time;
+
+    // Identification
+    bool has_color;
+    uint8_t color[3]; // Primary color: red, green, blue
+    bool has_instance_uuid;
+    uint8_t instance_uuid[16];
+    char brand_specific_instance_id[17];
+
     bool has_material_type_enum;
 } OpenPrintTagMain;
 
