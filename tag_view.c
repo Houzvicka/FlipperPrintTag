@@ -166,7 +166,10 @@ static void build_model(TagViewModel* model, const OpenPrintTagData* data, const
     const uint32_t consumed = data->aux.consumed_weight;
     model->has_weight = model->total > 0;
     model->remaining = model->total > consumed ? model->total - consumed : 0;
-    model->percent = model->total ? (uint8_t)((uint64_t)model->remaining * 100 / model->total) : 0;
+    model->percent =
+        model->total ?
+            (uint8_t)(((uint64_t)model->remaining * 100 + model->total / 2) / model->total) :
+            0;
 
     format_range(
         model->nozzle,
@@ -262,7 +265,7 @@ static void build_model(TagViewModel* model, const OpenPrintTagData* data, const
         add_row(
             model, identification, "Material", "%s", furi_string_get_cstr(main->material_name));
     }
-    if(type_name) add_row(model, identification, "Type", "%s", type_name);
+    if(type_abbreviation) add_row(model, identification, "Type", "%s", type_abbreviation);
     add_row(model, identification, "Class", "%s", material_class_get_name(main->material_class));
     if(main->gtin) {
         add_row(model, identification, "GTIN", "%llu", main->gtin);
@@ -296,7 +299,7 @@ static void build_model(TagViewModel* model, const OpenPrintTagData* data, const
         add_row(
             model,
             identification,
-            "Tag UID",
+            "UID",
             "%02X%02X%02X%02X%02X%02X%02X%02X",
             uid[0],
             uid[1],
@@ -428,15 +431,11 @@ static void draw_summary(Canvas* canvas, const TagViewModel* model) {
     canvas_set_font(canvas, FontSecondary);
     if(model->nozzle[0]) {
         draw_nozzle_icon(canvas, 2, 55);
-        char text[32];
-        snprintf(text, sizeof(text), "%s C", model->nozzle);
-        draw_fitted(canvas, 12, 62, text, 44, false);
+        draw_fitted(canvas, 12, 62, model->nozzle, 44, false);
     }
     if(model->bed[0]) {
         draw_bed_icon(canvas, 74, 55);
-        char text[32];
-        snprintf(text, sizeof(text), "%s C", model->bed);
-        draw_fitted(canvas, 84, 62, text, 42, false);
+        draw_fitted(canvas, 84, 62, model->bed, 42, false);
     }
     draw_page_dots(canvas, TagViewPageSummary, 64, 60);
 }
@@ -462,8 +461,13 @@ static void draw_list(Canvas* canvas, const TagViewModel* model, uint8_t page) {
         canvas_draw_str(canvas, 2, baseline, row->label);
         const uint16_t label_width = canvas_string_width(canvas, row->label);
 
+        // The bold font first, the smaller one when the value does not fit, then it is cut
+        const uint16_t value_width = right - 2 - label_width - 4;
         canvas_set_font(canvas, FontPrimary);
-        draw_fitted(canvas, right, baseline, row->value, right - 2 - label_width - 4, true);
+        if(canvas_string_width(canvas, row->value) > value_width) {
+            canvas_set_font(canvas, FontSecondary);
+        }
+        draw_fitted(canvas, right, baseline, row->value, value_width, true);
 
         // Dotted line between the rows
         for(int32_t x = 2; x <= right; x += 3) {
