@@ -90,6 +90,7 @@ typedef enum {
     OpenPrintTagSceneReadError,
     OpenPrintTagSceneDisplay,
     OpenPrintTagSceneWrite,
+    OpenPrintTagSceneCreate,
     OpenPrintTagSceneNum,
 } OpenPrintTagScene;
 
@@ -101,11 +102,30 @@ typedef enum {
     OpenPrintTagViewLoading,
     OpenPrintTagViewVariableItemList,
     OpenPrintTagViewNumberInput,
+    OpenPrintTagViewTextInput,
 } OpenPrintTagView;
 
 // Custom events sent by openprinttag_tag_write_callback() to the scene that started it
 #define OpenPrintTagEventWriteDone   (0x100U)
 #define OpenPrintTagEventWriteFailed (0x101U)
+
+// Longest brand / material name that can be entered
+#define OPENPRINTTAG_TEXT_MAX (32U)
+
+// Data entered for a new tag
+typedef struct {
+    char brand[OPENPRINTTAG_TEXT_MAX + 1];
+    char material[OPENPRINTTAG_TEXT_MAX + 1];
+    uint32_t type_index; // Index into material_types[] (see material_types.h)
+    uint32_t weight; // Weight of a full spool, in g (stored as nominal and actual weight)
+    uint32_t empty_weight; // Weight of the empty spool, in g, 0 = not stored
+    uint32_t nozzle_min; // Print temperatures in degrees C, 0 = not stored
+    uint32_t nozzle_max;
+    uint32_t bed_min;
+    uint32_t bed_max;
+} OpenPrintTagCreateData;
+
+#define OPENPRINTTAG_CREATE_ITEMS_MAX (12U)
 
 // Main app structure
 typedef struct OpenPrintTag {
@@ -118,6 +138,8 @@ typedef struct OpenPrintTag {
     Loading* loading;
     VariableItemList* variable_item_list;
     NumPad* numpad;
+    TextInput* text_input;
+    char text_buffer[OPENPRINTTAG_TEXT_MAX + 1]; // Text being edited in the text input view
 
     Nfc* nfc;
     NfcDevice* nfc_device;
@@ -144,6 +166,11 @@ typedef struct OpenPrintTag {
     bool write_number_input_active; // The number keyboard is the visible view
     bool write_number_input_additive; // The entered number is added to the total, not set
 
+    // Creating a new tag
+    OpenPrintTagCreateData create;
+    VariableItem* create_items[OPENPRINTTAG_CREATE_ITEMS_MAX];
+    uint8_t create_editing; // Row being edited in the text input / number pad
+    uint8_t create_phase; // See the create scene
 } OpenPrintTag;
 
 // Scene handlers
@@ -171,6 +198,10 @@ void openprinttag_scene_write_on_enter(void* context);
 bool openprinttag_scene_write_on_event(void* context, SceneManagerEvent event);
 void openprinttag_scene_write_on_exit(void* context);
 
+void openprinttag_scene_create_on_enter(void* context);
+bool openprinttag_scene_create_on_event(void* context, SceneManagerEvent event);
+void openprinttag_scene_create_on_exit(void* context);
+
 // Helper functions
 bool openprinttag_parse_ndef(OpenPrintTag* app, const uint8_t* data, size_t size);
 bool openprinttag_parse_cbor(OpenPrintTag* app, const uint8_t* payload, size_t size);
@@ -181,6 +212,12 @@ void openprinttag_free_data(OpenPrintTagData* data);
 // tag is in the field, skips blocks that already hold the data and verifies every block by reading
 // it back. It sends OpenPrintTagEventWriteDone or OpenPrintTagEventWriteFailed when finished.
 NfcCommand openprinttag_tag_write_callback(NfcGenericEventEx event, void* context);
+
+// Builds the complete memory image of a new tag (capability container, NDEF message with the
+// OpenPrintTag record, terminator). Returns the number of bytes used in out, which must hold
+// capacity bytes, or 0 if the data does not fit or the tag is not supported.
+size_t
+    openprinttag_build_tag_image(const OpenPrintTagCreateData* data, size_t capacity, uint8_t* out);
 
 // Encode auxiliary section to CBOR
 size_t openprinttag_encode_auxiliary(
