@@ -105,6 +105,10 @@ bool openprinttag_scene_read_on_event(void* context, SceneManagerEvent event) {
             const Iso15693_3Data* iso_data = (const Iso15693_3Data*)poller_data;
 
             if(iso_data) {
+                // Remember the UID for the result screen, the poller is freed when the scene exits
+                memcpy(app->tag_uid, iso_data->uid, sizeof(app->tag_uid));
+                app->has_tag_uid = true;
+
                 // Read all blocks and look for NDEF data
                 uint16_t block_count = iso15693_3_get_block_count(iso_data);
                 uint8_t block_size = iso15693_3_get_block_size(iso_data);

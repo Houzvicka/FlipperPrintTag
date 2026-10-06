@@ -13,6 +13,7 @@
 #include <gui/modules/variable_item_list.h>
 #include <gui/modules/dialog_ex.h>
 #include "numpad.h"
+#include "tag_view.h"
 #include <nfc/nfc.h>
 #include <nfc/nfc_device.h>
 #include <nfc/nfc_scanner.h>
@@ -63,7 +64,6 @@ typedef struct {
     uint32_t* tags;
     size_t tags_count;
 
-    bool has_data;
     // More temperatures (degrees C, 0 = not stored) and drying (time in minutes)
     int32_t preheat_temperature;
     int32_t min_chamber_temperature;
@@ -79,6 +79,7 @@ typedef struct {
     uint8_t instance_uuid[16];
     char brand_specific_instance_id[17];
 
+    bool has_data;
     bool has_material_type_enum;
 } OpenPrintTagMain;
 
@@ -120,6 +121,7 @@ typedef enum {
     OpenPrintTagViewNumberInput,
     OpenPrintTagViewTextInput,
     OpenPrintTagViewDialog,
+    OpenPrintTagViewTagView,
 } OpenPrintTagView;
 
 // Custom events sent by openprinttag_tag_write_callback() to the scene that started it
@@ -160,6 +162,7 @@ typedef struct OpenPrintTag {
     Loading* loading;
     VariableItemList* variable_item_list;
     NumPad* numpad;
+    TagView* tag_view;
     TextInput* text_input;
     DialogEx* dialog_ex;
     char text_buffer[OPENPRINTTAG_MATERIAL_MAX + 1]; // Text being edited in the text input view
@@ -171,6 +174,8 @@ typedef struct OpenPrintTag {
     NfcProtocol detected_protocol;
 
     OpenPrintTagData tag_data;
+    uint8_t tag_uid[8]; // UID of the tag that was read, the first byte is E0 for NFC-V tags
+    bool has_tag_uid;
     uint32_t temp_consumed_weight; // Temporary value for editing
 
     // Write state
@@ -262,6 +267,12 @@ size_t openprinttag_build_tag_image(
     size_t capacity,
     size_t block_size,
     uint8_t* out);
+
+// Fills the read-result screen with what was read from a tag. uid can be NULL.
+void openprinttag_tag_view_set_data(
+    TagView* tag_view,
+    const OpenPrintTagData* data,
+    const uint8_t* uid);
 
 // Encodes the auxiliary section with a new consumed weight. Every other field already in the
 // tag's auxiliary section is copied as it is, known or not, as the specification requires.

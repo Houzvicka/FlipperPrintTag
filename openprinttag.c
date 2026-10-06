@@ -125,6 +125,11 @@ static OpenPrintTag* openprinttag_alloc() {
         OpenPrintTagViewVariableItemList,
         variable_item_list_get_view(app->variable_item_list));
 
+    app->tag_view = tag_view_alloc();
+    view_dispatcher_add_view(
+        app->view_dispatcher, OpenPrintTagViewTagView, tag_view_get_view(app->tag_view));
+    app->has_tag_uid = false;
+
     app->numpad = numpad_alloc();
     view_dispatcher_add_view(
         app->view_dispatcher, OpenPrintTagViewNumberInput, numpad_get_view(app->numpad));
@@ -238,6 +243,9 @@ static void openprinttag_free(OpenPrintTag* app) {
 
     view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewNumberInput);
     numpad_free(app->numpad);
+
+    view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewTagView);
+    tag_view_free(app->tag_view);
 
     view_dispatcher_remove_view(app->view_dispatcher, OpenPrintTagViewTextInput);
     text_input_free(app->text_input);
