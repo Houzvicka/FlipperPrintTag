@@ -78,6 +78,7 @@ typedef struct {
     OpenPrintTagAux aux;
     uint8_t* raw_data;
     size_t raw_data_size;
+    uint32_t ndef_payload_offset; // byte offset of the OpenPrintTag payload in tag memory
 } OpenPrintTagData;
 
 // App scenes

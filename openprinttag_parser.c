@@ -3,6 +3,19 @@
 #include "cbor_parser.h"
 #include <furi.h>
 
+// Numeric fields may be stored as integers or floats
+static bool cbor_value_to_float(const CborValue* value, float* out) {
+    if(value->type == CborValueTypeFloat) {
+        *out = value->value.f32;
+        return true;
+    }
+    if(value->type == CborValueTypeUnsigned) {
+        *out = (float)value->value.u64;
+        return true;
+    }
+    return false;
+}
+
 static bool parse_meta_section(CborParser* parser, OpenPrintTagMeta* meta) {
     size_t count;
     if(!cbor_parse_map(parser, &count)) return false;
@@ -17,7 +30,7 @@ static bool parse_meta_section(CborParser* parser, OpenPrintTagMeta* meta) {
 
         if(!cbor_parse_value(parser, &key)) return false;
         if(key.type != CborValueTypeUnsigned) {
-            cbor_skip_value(parser);
+            if(!cbor_skip_contents(parser, &key) || !cbor_skip_value(parser)) return false;
             continue;
         }
 
@@ -49,6 +62,9 @@ static bool parse_meta_section(CborParser* parser, OpenPrintTagMeta* meta) {
         default:
             break;
         }
+
+        // Skip the elements of container values that were not read above
+        if(!cbor_skip_contents(parser, &value)) return false;
     }
 
     return true;
@@ -65,7 +81,7 @@ static bool parse_main_section(CborParser* parser, OpenPrintTagMain* main) {
 
         if(!cbor_parse_value(parser, &key)) return false;
         if(key.type != CborValueTypeUnsigned) {
-            cbor_skip_value(parser);
+            if(!cbor_skip_contents(parser, &key) || !cbor_skip_value(parser)) return false;
             continue;
         }
 
@@ -156,19 +172,13 @@ static bool parse_main_section(CborParser* parser, OpenPrintTagMain* main) {
 
         // FFF-specific
         case MAIN_FILAMENT_DIAMETER:
-            if(value.type == CborValueTypeUnsigned) {
-                main->filament_diameter = (float)value.value.u64;
-            }
+            cbor_value_to_float(&value, &main->filament_diameter);
             break;
         case MAIN_NOMINAL_FULL_LENGTH:
-            if(value.type == CborValueTypeUnsigned) {
-                main->nominal_full_length = (float)value.value.u64;
-            }
+            cbor_value_to_float(&value, &main->nominal_full_length);
             break;
         case MAIN_ACTUAL_FULL_LENGTH:
-            if(value.type == CborValueTypeUnsigned) {
-                main->actual_full_length = (float)value.value.u64;
-            }
+            cbor_value_to_float(&value, &main->actual_full_length);
             break;
         case MAIN_MIN_PRINT_TEMPERATURE:
             if(value.type == CborValueTypeUnsigned) {
@@ -193,22 +203,19 @@ static bool parse_main_section(CborParser* parser, OpenPrintTagMain* main) {
 
         // Material properties
         case MAIN_DENSITY:
-            if(value.type == CborValueTypeUnsigned) {
-                main->density = (float)value.value.u64;
-            }
+            cbor_value_to_float(&value, &main->density);
             break;
         case MAIN_TAGS:
-            // Tags is an array - store for later parsing
-            if(value.type == CborValueTypeArray) {
-                // Skip for now - would need to parse array
-                cbor_skip_value(parser);
-            }
+            // Tags is an array - not stored yet, its elements are skipped below
             break;
 
         default:
             // Skip unknown fields
             break;
         }
+
+        // Skip the elements of container values that were not read above
+        if(!cbor_skip_contents(parser, &value)) return false;
     }
 
     return main->has_data;
@@ -227,7 +234,7 @@ static bool parse_aux_section(CborParser* parser, OpenPrintTagAux* aux) {
 
         if(!cbor_parse_value(parser, &key)) return false;
         if(key.type != CborValueTypeUnsigned) {
-            cbor_skip_value(parser);
+            if(!cbor_skip_contents(parser, &key) || !cbor_skip_value(parser)) return false;
             continue;
         }
 
@@ -259,6 +266,9 @@ static bool parse_aux_section(CborParser* parser, OpenPrintTagAux* aux) {
             // Skip vendor-specific or unknown fields
             break;
         }
+
+        // Skip the elements of container values that were not read above
+        if(!cbor_skip_contents(parser, &value)) return false;
     }
 
     return true;
@@ -274,14 +284,28 @@ bool openprinttag_parse_cbor(OpenPrintTag* app, const uint8_t* payload, size_t s
         return false;
     }
 
+    // The main section follows the meta section unless the meta section says otherwise
+    if(app->tag_data.meta.main_region_offset > 0 && app->tag_data.meta.main_region_offset < size) {
+        cbor_parser_init(
+            &parser,
+            payload + app->tag_data.meta.main_region_offset,
+            size - app->tag_data.meta.main_region_offset);
+    }
+
     // Parse main section
     if(!parse_main_section(&parser, &app->tag_data.main)) {
         FURI_LOG_E(TAG, "Failed to parse main section");
         return false;
     }
 
-    // Parse auxiliary section if present
-    if(app->tag_data.meta.aux_region_offset > 0) {
+    // Without an explicit size the auxiliary region extends to the end of the payload
+    if(app->tag_data.meta.aux_region_offset > 0 && app->tag_data.meta.aux_region_offset < size &&
+       app->tag_data.meta.aux_region_size == 0) {
+        app->tag_data.meta.aux_region_size = size - app->tag_data.meta.aux_region_offset;
+    }
+
+    // Parse auxiliary section if present. An offset past the payload is ignored.
+    if(app->tag_data.meta.aux_region_offset > 0 && app->tag_data.meta.aux_region_offset < size) {
         cbor_parser_init(
             &parser,
             payload + app->tag_data.meta.aux_region_offset,

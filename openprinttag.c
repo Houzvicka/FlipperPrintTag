@@ -155,6 +155,8 @@ static OpenPrintTag* openprinttag_alloc() {
 
     app->tag_data.raw_data = NULL;
     app->tag_data.raw_data_size = 0;
+    app->tag_data.ndef_payload_offset = 0;
+    memset(&app->tag_data.meta, 0, sizeof(app->tag_data.meta));
 
     // Initialize NFC scanner/poller to NULL
     app->nfc_scanner = NULL;
