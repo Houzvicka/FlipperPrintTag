@@ -12,7 +12,8 @@ Read, update and create OpenPrintTag NFC tags on 3D printing filament spools wit
 <p>
 <img src="screenshots/ss3.png" width="256" alt="Identification page">
 <img src="screenshots/ss4.png" width="256" alt="Main menu">
-<img src="screenshots/ss5.png" width="256" alt="Form for creating a new tag">
+<img src="screenshots/ss5.png" width="256" alt="Update screen: remaining and consumed weight">
+<img src="screenshots/ss6.png" width="256" alt="Form for creating a new tag">
 </p>
 
 ## What it does
